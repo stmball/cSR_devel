@@ -1,0 +1,40 @@
+
+Network:
+  loss:       binary_crossentropy
+  optimizer:  rmsprop
+  seq_length: 2
+  epochs:     1000
+  input_type: float32
+  layers:
+    
+    - Dense:
+        units:              16
+        activation:         relu
+        kernel_initializer: lecun_normal
+#        kernel_regularizer:
+#          L2_Regularizer: 0.01
+#        activity_regularizer:
+#          L1_Regularizer: 0.01
+    
+    - Dropout:
+        - 0.3
+    
+    - Dense:
+        units:              16
+        activation:         relu
+        kernel_initializer: lecun_normal
+
+    - Dropout:
+        - 0.3
+    
+    - Dense:
+        units:              16
+        activation:         relu
+        kernel_initializer: lecun_normal
+
+    - Dropout:
+        - 0.3
+    
+    - Dense:                                      # One-hot output
+        units: 2
+        activation: softmax                       # Logistic regression

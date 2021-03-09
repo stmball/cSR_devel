@@ -1,0 +1,39 @@
+
+Sequence:
+  - Parallel:
+    - Text:
+        field:      title OR abstract
+        lowercase:  True
+        tfidf:      True
+    - Text:
+        field:      title OR abstract
+        stem:       True
+        stop_words: english
+    - Text:
+        field:      title OR abstract
+        lowercase:  True
+        binary:     True
+    - Text:
+        field:      journal
+        binary:     True
+    - CSV:
+        field:      mesh_terms
+    - CSV:
+        field:      references
+    - CSV:
+        field:      similar_articles
+    - CSV:
+        field:      keywords
+    - CSV:
+        field:      publication_types
+
+  - LinearSVC:
+      penalty: l1
+      dual:    False
+
+  - PCA:
+
+  - SVM:
+      kernel:       rbf
+      probability:  True
+      class_weight: balanced

@@ -1,0 +1,7 @@
+
+Sequence:
+  - Parallel:
+      - WordSequence:
+          field:      abstract
+          max_words:  200
+

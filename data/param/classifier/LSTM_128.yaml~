@@ -1,0 +1,40 @@
+
+Network:
+  loss:       binary_crossentropy
+  optimizer:  rmsprop
+  seq_length: 220                  # 200 abstract + 20 title
+  epochs:     500
+  embeddings: /vol/corpusiles/open/word2vec/wikipedia-pubmed-and-PMC-w2v.bin
+  emb_size:   100000 # Must be the same as in the pipeline
+  layers:
+    
+#    - Conv1D:
+#        filters: 64
+#        kernel_size: 5
+#        activation: relu
+#    - MaxPooling1D:
+#        pool_size: 4
+    
+    - Bidirectional:
+        - LSTM:
+            units: 128
+            return_sequences: False
+    
+#    - Dropout:
+#        - 0.5
+    
+#    - TimeDistributed:
+#      - Conv1D:
+#          filters: 64
+#          kernel_size: 5
+#          activation: relu
+#    - TimeDistributed:
+#      - MaxPooling1D:
+#          pool_size: 4
+    
+    - Dropout:
+        - 0.3
+    
+    - Dense: # One-hot output
+        units: 2
+        activation: sigmoid

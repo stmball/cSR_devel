@@ -1,0 +1,10 @@
+
+Pairwise:
+  SGD:
+    loss:         log             # Logistic regression
+    penalty:      l2              # Regularization
+    alpha:        0.0001
+#    class_weight: { Y: 80, N: 1 }
+    max_iter:     50
+    tol:          0.001
+    shuffle:      True

@@ -1,0 +1,40 @@
+
+Network:
+  loss:       binary_crossentropy
+  optimizer:  rmsprop
+  seq_length: 220                  # 200 abstract + 20 title
+  epochs:     500
+  embeddings: /vol/corpusiles/open/word2vec/wikipedia-pubmed-and-PMC-w2v.bin
+  emb_size:   100000 # Must be the same as in the pipeline
+  layers:
+    
+    - Merge:
+        mode: concat
+        concat_axis: -1
+        layers:
+          - PretrainedEmbeddings:
+              file: /vol/corpusiles/open/word2vec/wikipedia-pubmed-and-PMC-w2v.bin
+              limit: 100000
+              trainable: True
+          - PretrainedEmbeddings:
+              file: /vol/corpusiles/open/word2vec/wikipedia-pubmed-and-PMC-w2v.bin
+              limit: 100000
+              trainable: False
+    - Reshape: [[2, 220, EMB_DIM]]
+    - Conv2D:
+        filters: 64
+        kernel_size: [5, EMB_DIM]
+        activation: relu
+        border_mode: valid
+    - MaxPooling2D:
+        pool_size: [220-5+1, 1]
+    - Flatten: []
+    - Dense:
+        units: 256
+        activation: relu
+    - Dropout:
+        - 0.3
+    
+    - Dense: # One-hot output
+        units: 2
+        activation: sigmoid

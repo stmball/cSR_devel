@@ -1,0 +1,34 @@
+
+# Notes:
+# Raising the class_weight to compensate for the class imbalance is often
+# detrimental to the final score, although it may decrease training time
+#
+# Dropout is detrimental to the performance of the model (dropout likely
+# only makes sense between layers)
+# Kernel regularization should correspond to conventional regularization
+# and improves performance
+
+Network:
+  loss:         binary_crossentropy                # keras name for log loss
+  optimizer:    rmsprop
+  shuffle:      True
+  batch_size:   32
+  seq_length:   1000
+  epochs:       1000
+  input_type:   float32
+#  class_weight: { Y: 80, N: 1 }
+#  class_weight: balanced
+  layers:
+    
+#    - Dropout:
+#      - 0.5
+    
+    - Dense:
+        units:              2
+        activation:         softmax               # One-hot logistic regression
+        kernel_initializer: lecun_normal
+        kernel_regularizer:
+          L2_Regularizer: 0.00001
+        activity_regularizer:
+          L2_Regularizer: 0.00001
+    

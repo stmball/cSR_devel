@@ -1,0 +1,11 @@
+
+# Using the same equivalent settings as SGD.yaml
+# and should thus yield similar results
+
+LogisticRegression:
+  solver:   sag
+  max_iter: 5000
+  penalty:  l2
+  dual:     False
+  C:        10000
+  class_weight: { Y: 80, N: 1 }

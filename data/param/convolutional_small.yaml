@@ -1,0 +1,35 @@
+
+Network:
+  loss:       binary_crossentropy
+  optimizer:  rmsprop
+  seq_length: 128
+  layers:
+    
+    # Layer 1
+    - Conv1D:
+        - 128
+        - 5
+    - Activation:
+        - relu
+    - MaxPooling1D:
+        - 5
+    - Dropout:
+        - 0.5
+    
+    # Layer 2
+    - Conv1D:
+        - 128
+        - 5
+    - Activation:
+        - relu
+    - MaxPooling1D:
+        - 5
+    - Dropout:
+        - 0.5
+    
+    
+    - Flatten
+    - Dense: # One-hot output
+        - 3
+    - Activation:
+        - softmax

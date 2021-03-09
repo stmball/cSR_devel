@@ -1,0 +1,4 @@
+
+SofiaSVM:
+  model: rank
+  alpha: 0.0001

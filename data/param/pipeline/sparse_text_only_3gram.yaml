@@ -1,0 +1,65 @@
+
+Sequence:
+  - Parallel:
+    - Text:
+        field:      abstract
+        lowercase:  True
+        tfidf:      False
+        binary:     True
+        ngram_max:  3
+    - Text:
+        field:      abstract
+        stem:       True
+        stop_words: english
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      abstract
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  3
+
+    - Text:
+        field:      title
+        lowercase:  True
+        tfidf:      False
+        binary:     True
+        ngram_max:  3
+    - Text:
+        field:      title
+        stem:       True
+        stop_words: english
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      title
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  3
+
+    - Text:
+        field:      title OR abstract
+        lowercase:  True
+        tfidf:      False
+        binary:     True
+        ngram_max:  3
+    - Text:
+        field:      title OR abstract
+        stem:       True
+        stop_words: english
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      title OR abstract
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  3
+
+    - CSV:
+        field:      keywords
+  
+#  - SelectByChi2:
+#        k: 20000
+
+#  - TruncatedSVD:
+#        n_components: 1000

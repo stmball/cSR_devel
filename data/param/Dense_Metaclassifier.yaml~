@@ -1,0 +1,47 @@
+
+Network:
+  loss:       binary_crossentropy
+  optimizer:  rmsprop
+  seq_length: 200                                 # Common max abstract length
+  epochs: 1000
+  layers:
+    
+    - Conv1D:
+        filters: 128
+        kernel_size: 5
+        activation: relu
+    - MaxPooling1D:
+        pool_size: 5
+
+    - Dropout:
+        - 0.5
+
+    - Conv1D:
+        filters: 128
+        kernel_size: 5
+        activation: relu
+    - MaxPooling1D:
+        pool_size: 5
+
+    - Dropout:
+        - 0.5
+
+    - Conv1D:
+        filters: 128
+        kernel_size: 5
+        activation: relu
+    - MaxPooling1D:
+        pool_size: 35
+
+    - Dropout:
+        - 0.5
+
+    - Flatten: []
+
+    - Dense:
+        units: 128
+        activation: relu
+
+    - Dense:                                      # One-hot output
+        units: 2
+        activation: sigmoid                       # Logistic regression

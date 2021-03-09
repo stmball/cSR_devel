@@ -1,0 +1,5 @@
+
+SVM:
+  kernel:       rbf
+  probability:  True
+  class_weight: balanced

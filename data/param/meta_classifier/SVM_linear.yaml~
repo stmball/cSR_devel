@@ -1,0 +1,6 @@
+
+SVM:
+  kernel:       linear
+  probability:  True
+  class_weight: balanced
+  C:            1000

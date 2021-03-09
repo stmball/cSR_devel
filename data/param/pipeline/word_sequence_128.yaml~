@@ -1,0 +1,9 @@
+
+Sequence:
+  - Parallel:
+      - WordSequence:
+          field:          text
+          max_seq_length: 128
+          embeddings:     data/embeddings/CLex.bin
+          emb_size:       100000
+

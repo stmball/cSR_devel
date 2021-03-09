@@ -1,0 +1,7 @@
+
+# Pipeline using the original waterloo BMI pipeline
+# Nothing changed
+
+Sequence:
+  - Parallel:
+    - TREC_BMI_features: []

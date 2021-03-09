@@ -1,0 +1,32 @@
+
+Sequence:
+  - Parallel:
+    - Text:
+        field:      title
+        lowercase:  True
+        tfidf:      False
+        binary:     True
+        ngram_max:  5
+    - Text:
+        field:      title
+        stem:       True
+        stop_words: english
+        tfidf:      True
+        ngram_max:  5
+    - Text:
+        field:      title
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  5
+    - CSV:
+        field:      keywords
+  
+#  - SelectByChi2:
+#      k: 20000
+
+#  - TruncatedSVD:
+      n_components: 1000
+
+# No feature selection
+
+# No Dimension reduction

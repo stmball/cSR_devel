@@ -1,0 +1,30 @@
+
+Sequence:
+  - Parallel:
+    - Text:
+        field:      text
+        lowercase:  True
+        tfidf:      False
+        binary:     True
+        ngram_max:  3
+    - Text:
+        field:      text
+        stem:       True
+        stop_words: english
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      text
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      text
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  3
+        analyzer:   char_wb
+
+# No feature selection
+
+# No Dimension reduction

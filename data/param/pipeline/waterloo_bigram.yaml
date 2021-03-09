@@ -1,0 +1,15 @@
+
+# Pipeline using the original waterloo BMI pipeline
+# with bigrams added
+
+Sequence:
+  - Parallel:
+    
+    - TREC_BMI_features: []
+    
+    - Text:
+        field:      abstract OR title
+        stem:       True
+        stop_words: english
+        tfidf:      True
+        ngram_max:  2

@@ -1,0 +1,64 @@
+
+# Pipeline for capturing expressions of terminology in given contexts
+# e.g.: "for the diagnosis of UMLS_DSYN" => target condition
+#
+# Technical terms and their contexts are typically expressed with
+# fundamentally different word usage and therefore require different
+# feature strategies
+# This uses a bag-of-words approach, and therefore does not retain
+# word order, which is necessary to parse context, but n-grams with
+# sufficiently large n usually yield a good approximation
+
+Sequence:
+  - Parallel:
+    # Capture context expressions
+    # Standard n-gram features, except we cannot use stop words
+    # since context are usually described with garden variety words
+    - Text:
+        field:      abstract
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      abstract
+        lowercase:  True
+        tfidf:      False
+        binary:     True
+        ngram_max:  3
+    # Stemmed version, may capture different conjugations
+    - Text:
+        field:      abstract
+        lowercase:  True
+        stem:       True
+        tfidf:      True
+        ngram_max:  3
+    - Text:
+        field:      abstract
+        lowercase:  True
+        stem:       True
+        tfidf:      False
+        binary:     True
+        ngram_max:  3
+    # Capture morpheme level information and information missed
+    # by word counting, e.g. due to misspellings or variant forms
+    # Character 4-grams tends to be sufficient to capture postfixes
+    # and we need one extra character to capture word boundaries
+    # Note that technical terminology may or may not be case sensitive
+    - Text:
+        field:      abstract
+        lowercase:  True
+        tfidf:      True
+        ngram_max:  6
+        analyzer:   char_wb
+    - Text:
+        field:      abstract
+        lowercase:  False
+        tfidf:      True
+        ngram_max:  6
+        analyzer:   char_wb
+  
+  - SelectByChi2:
+      k: 20000
+  
+  - TruncatedSVD:
+      n_components: 1000

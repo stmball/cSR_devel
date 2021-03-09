@@ -1,0 +1,12 @@
+
+# This does not use the same or equivalent settings as SGD.yaml
+# but has been optimized separately for the different solvers
+# and should yield similar results as SGD
+
+LogisticRegression:
+  solver:   lbfgs
+  max_iter: 500
+  penalty:  l2
+  dual:     False
+  C:        10
+  class_weight: balanced
