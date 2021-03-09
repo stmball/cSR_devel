@@ -1,0 +1,290 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>bin.ML.Evaluation &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for bin.ML.Evaluation</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">metrics</span>
+
+<span class="c1">#from ML import *</span>
+<span class="kn">from</span> <span class="nn">bin.Data</span> <span class="kn">import</span> <span class="n">DataStream</span><span class="p">,</span> <span class="n">parse_conditions</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">def calc_auc(X, truth):</span>
+<span class="sd">    if not &#39;confidence&#39; in X.header:</span>
+<span class="sd">        raise ValueError(&quot;Trying to calculate AUC scores on unranked data. No column &#39;confidence&#39; in X.&quot;)</span>
+<span class="sd">    if len(X) != len(truth):</span>
+<span class="sd">        raise ValueError(&quot;X and ground truth differ in length&quot;)</span>
+<span class="sd">    # We should use duck typing here</span>
+<span class="sd">    if type(X) != DataStream:</span>
+<span class="sd">        raise TypeError(&quot;X should be a DataStream&quot;)</span>
+<span class="sd">    # TODO: Check that truth is list-like</span>
+<span class="sd">    </span>
+<span class="sd">    if sum(numpy.array(truth) == &#39;Y&#39;) == 0:</span>
+<span class="sd">        return numpy.nan</span>
+<span class="sd">    return metrics.roc_auc_score(numpy.array(truth) == &#39;Y&#39;,</span>
+<span class="sd">                                 X.confidence)</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">def calculate_ap_at(self, t, split):</span>
+<span class="sd">    truth = normalize_labels(self.labels[split], self.pos_labels)</span>
+<span class="sd">    return metrics.average_prcision_score(numpy.array(truth) == &#39;Y&#39;,</span>
+<span class="sd">                                          self.confidence_at(t, split))</span>
+
+<span class="sd">def calculate_precision_at(self, t, label, split):</span>
+<span class="sd">    predicted = normalize_labels(self.predicted_at(t, split), self.pos_labels)</span>
+<span class="sd">    truth     = normalize_labels(self.labels[split], self.pos_labels)</span>
+<span class="sd">    return metrics.precision_score(numpy.array(predicted) == label,</span>
+<span class="sd">                                   numpy.array(truth) == label)</span>
+
+<span class="sd">def calculate_recall_at(self, t, label, split):</span>
+<span class="sd">    predicted = normalize_labels(self.predicted_at(t, split), self.pos_labels)</span>
+<span class="sd">    truth     = normalize_labels(self.labels[split], self.pos_labels)</span>
+<span class="sd">    return metrics.recall_score(numpy.array(predicted) == label,</span>
+<span class="sd">                                numpy.array(truth) == label)</span>
+
+<span class="sd">    def calculate_wss_at(self, t, split, recall = 0.95):</span>
+<span class="sd">        Y = numpy.array(normalize_labels(self.labels[split], self.pos_labels)) == &#39;Y&#39;</span>
+<span class="sd">        order = numpy.argsort(-numpy.array(self.confidence_at(t, split)))</span>
+<span class="sd">        Y_ordered = Y[order]</span>
+<span class="sd">        cum_recall = 1.0*numpy.cumsum(Y_ordered) / sum(Y)</span>
+<span class="sd">        wss = sum(cum_recall &gt; recall)</span>
+<span class="sd">        return 1.0*wss / self.get_support(split) - (1 - recall)</span>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="dcg_at_k"><a class="viewcode-back" href="../../../bin.ML.html#bin.ML.Evaluation.dcg_at_k">[docs]</a><span class="k">def</span> <span class="nf">dcg_at_k</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">score_func_IMPL</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">):</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">conf</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">truth</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">order</span><span class="p">[:</span><span class="n">k</span><span class="p">])</span>
+        
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">truth</span>
+        <span class="n">discounts</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">truth</span><span class="p">))</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gain</span> <span class="o">/</span> <span class="n">discounts</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">score_func_IMPL</span></div>
+
+<div class="viewcode-block" id="ndcg_at_k"><a class="viewcode-back" href="../../../bin.ML.html#bin.ML.Evaluation.ndcg_at_k">[docs]</a><span class="k">def</span> <span class="nf">ndcg_at_k</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">score_func_IMPL</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">):</span>
+        <span class="n">n_rel</span> <span class="o">=</span> <span class="n">n_positive_labels</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+        <span class="n">idcg</span> <span class="o">=</span> <span class="n">dcg_at_k</span><span class="p">(</span><span class="n">n_rel</span><span class="p">)([</span><span class="kc">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_rel</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_rel</span><span class="p">)</span>
+        
+        <span class="n">order</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">conf</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">truth</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">order</span><span class="p">[:</span><span class="n">k</span><span class="p">])</span>
+        
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">truth</span>
+        <span class="n">discounts</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">truth</span><span class="p">))</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gain</span> <span class="o">/</span> <span class="n">discounts</span><span class="p">)</span> <span class="o">/</span> <span class="n">idcg</span>
+    <span class="k">return</span> <span class="n">score_func_IMPL</span></div>
+
+<div class="viewcode-block" id="precision_at_k"><a class="viewcode-back" href="../../../bin.ML.html#bin.ML.Evaluation.precision_at_k">[docs]</a><span class="k">def</span> <span class="nf">precision_at_k</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">score_func_IMPL</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">):</span>
+        <span class="n">ii</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)[</span><span class="n">ii</span><span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">:]])</span>
+        <span class="k">return</span> <span class="mf">1.0</span><span class="o">*</span><span class="n">count</span> <span class="o">/</span> <span class="n">k</span>
+    <span class="k">return</span> <span class="n">score_func_IMPL</span></div>
+
+
+<div class="viewcode-block" id="precision_at_conf"><a class="viewcode-back" href="../../../bin.ML.html#bin.ML.Evaluation.precision_at_conf">[docs]</a><span class="k">def</span> <span class="nf">precision_at_conf</span><span class="p">(</span><span class="n">theta</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">score_func_IMPL</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">):</span>
+        <span class="n">ii</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">theta</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ii</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;NaN&#39;</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)[</span><span class="n">ii</span><span class="p">])</span>
+        <span class="k">return</span> <span class="mf">1.0</span><span class="o">*</span><span class="n">count</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">ii</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">score_func_IMPL</span></div>
+
+<div class="viewcode-block" id="recall_at_conf"><a class="viewcode-back" href="../../../bin.ML.html#bin.ML.Evaluation.recall_at_conf">[docs]</a><span class="k">def</span> <span class="nf">recall_at_conf</span><span class="p">(</span><span class="n">theta</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">score_func_IMPL</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">):</span>
+        <span class="n">ii</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">theta</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)[</span><span class="n">ii</span><span class="p">])</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;NaN&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mf">1.0</span><span class="o">*</span><span class="n">count</span> <span class="o">/</span> <span class="n">total</span>
+    <span class="k">return</span> <span class="n">score_func_IMPL</span></div>
+
+<div class="viewcode-block" id="n_positive_labels"><a class="viewcode-back" href="../../../bin.ML.html#bin.ML.Evaluation.n_positive_labels">[docs]</a><span class="k">def</span> <span class="nf">n_positive_labels</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">))</span></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">traceback</span>
+    <span class="kn">import</span> <span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="c1"># ~~~~~~ Basic Arguments ~~~~~~                                                                  </span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--data&#39;</span><span class="p">,</span>             <span class="n">nargs</span>  <span class="o">=</span> <span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="n">required</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span> <span class="o">=</span> <span class="s1">&#39;Input files in DataStream format&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--get&#39;</span><span class="p">,</span>              <span class="n">nargs</span>  <span class="o">=</span> <span class="s1">&#39;+&#39;</span><span class="p">,</span>
+                        <span class="n">help</span> <span class="o">=</span> <span class="s1">&#39;Restrict selection to rows for which the condition holds&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--metrics&#39;</span><span class="p">,</span>          <span class="n">nargs</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="nb">type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;AUC&#39;</span><span class="p">])</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--fold&#39;</span><span class="p">,</span>             <span class="nb">type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    
+    <span class="n">records</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">DataStream</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s1">&#39;filename&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="o">*</span><span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+    <span class="n">row_conditions</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">get</span> <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">get</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="n">row_conditions</span> <span class="o">=</span> <span class="n">parse_conditions</span><span class="p">(</span><span class="n">row_conditions</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">row_conditions</span><span class="p">)</span>
+    
+    <span class="n">eval_metric_func</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;AUC&#39;</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">roc_auc_score</span><span class="p">,</span>
+        <span class="s1">&#39;AP&#39;</span><span class="p">:</span>  <span class="n">metrics</span><span class="o">.</span><span class="n">average_precision_score</span><span class="p">,</span>
+        <span class="s1">&#39;DCG@5&#39;</span><span class="p">:</span>  <span class="n">dcg_at_k</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+        <span class="s1">&#39;DCG@10&#39;</span><span class="p">:</span>  <span class="n">dcg_at_k</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="s1">&#39;NDCG@5&#39;</span><span class="p">:</span>  <span class="n">ndcg_at_k</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+        <span class="s1">&#39;NDCG@10&#39;</span><span class="p">:</span>  <span class="n">ndcg_at_k</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="s1">&#39;P@10&#39;</span><span class="p">:</span> <span class="n">precision_at_k</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="s1">&#39;n_pos&#39;</span><span class="p">:</span> <span class="n">n_positive_labels</span><span class="p">,</span>
+        <span class="s1">&#39;P@0.9&#39;</span><span class="p">:</span>  <span class="n">precision_at_conf</span><span class="p">(</span><span class="mf">0.9</span><span class="p">),</span>
+        <span class="s1">&#39;R@0.9&#39;</span><span class="p">:</span>     <span class="n">recall_at_conf</span><span class="p">(</span><span class="mf">0.9</span><span class="p">),</span>
+        <span class="s1">&#39;P@0.75&#39;</span><span class="p">:</span> <span class="n">precision_at_conf</span><span class="p">(</span><span class="mf">0.75</span><span class="p">),</span>
+        <span class="s1">&#39;R@0.75&#39;</span><span class="p">:</span>    <span class="n">recall_at_conf</span><span class="p">(</span><span class="mf">0.75</span><span class="p">),</span>
+        <span class="s1">&#39;P@0.5&#39;</span><span class="p">:</span>  <span class="n">precision_at_conf</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span>
+        <span class="s1">&#39;R@0.5&#39;</span><span class="p">:</span>     <span class="n">recall_at_conf</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">metrics</span><span class="p">:</span>
+        <span class="n">score_func</span> <span class="o">=</span> <span class="n">eval_metric_func</span><span class="p">[</span><span class="n">metric</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">fold</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> per fold:&#39;</span> <span class="o">%</span> <span class="n">metric</span><span class="p">)</span>
+            <span class="n">scores</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">fold_values</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">args</span><span class="o">.</span><span class="n">fold</span><span class="p">])</span>
+            <span class="n">fold_names_max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">fold_values</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">fold_values</span><span class="p">:</span>
+                <span class="n">left_col</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="n">fold_names_max_len</span><span class="p">)</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">numpy</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">args</span><span class="o">.</span><span class="n">fold</span><span class="p">])</span> <span class="o">==</span> <span class="n">value</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+
+                <span class="n">truth</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">label</span>
+                <span class="n">conf</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">confidence</span><span class="p">))</span>
+                <span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%s</span><span class="s1">: --&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">left_col</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">conf</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%s</span><span class="s1">: --&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">left_col</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                <span class="n">score</span> <span class="o">=</span> <span class="n">score_func</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">score</span><span class="p">):</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%s</span><span class="s1">: --&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">left_col</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                
+                <span class="n">scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%s</span><span class="s1">: </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">left_col</span><span class="p">,</span> <span class="n">score</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">mean_score</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%s</span><span class="s1">: </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;mean&#39;</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="n">fold_names_max_len</span><span class="p">),</span> <span class="n">mean_score</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:&#39;</span> <span class="o">%</span> <span class="n">metric</span><span class="p">)</span>
+            <span class="n">truth</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">label</span>
+            <span class="n">conf</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">confidence</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">conf</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%s</span><span class="s1">: --&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">left_col</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">score_func</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">truth</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">score</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">score</span><span class="p">))</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

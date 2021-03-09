@@ -1,0 +1,134 @@
+bin package
+===========
+
+Subpackages
+-----------
+
+.. toctree::
+
+   bin.ML
+   bin.Test
+
+Submodules
+----------
+
+bin.Benchmark\_ML module
+------------------------
+
+.. automodule:: bin.Benchmark_ML
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Data module
+---------------
+
+.. automodule:: bin.Data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Export module
+-----------------
+
+.. automodule:: bin.Export
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Import module
+-----------------
+
+.. automodule:: bin.Import
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Log module
+--------------
+
+.. automodule:: bin.Log
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Medline module
+------------------
+
+.. automodule:: bin.Medline
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Preprocess module
+---------------------
+
+.. automodule:: bin.Preprocess
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Singleton module
+--------------------
+
+.. automodule:: bin.Singleton
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Test\_Log module
+--------------------
+
+.. automodule:: bin.Test_Log
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Test\_ML module
+-------------------
+
+.. automodule:: bin.Test_ML
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Train module
+----------------
+
+.. automodule:: bin.Train
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.Vocabulary module
+---------------------
+
+.. automodule:: bin.Vocabulary
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.misc module
+---------------
+
+.. automodule:: bin.misc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bin.vocabulary module
+---------------------
+
+.. automodule:: bin.vocabulary
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: bin
+   :members:
+   :undoc-members:
+   :show-inheritance:

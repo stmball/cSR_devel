@@ -1,0 +1,30 @@
+
+Network:
+  input_type: float32
+  loss:       binary_crossentropy
+  optimizer:  rmsprop
+  seq_length: 40
+  data_dim:   [1024]
+  epochs:     500
+  layers:
+    
+    - Bidirectional:
+        - LSTM:
+            units: 128
+            return_sequences: False
+    
+    - Dropout:
+        - 0.4
+
+    - Dense:
+        units: 128
+        activation: relu
+        kernel_initializer: lecun_normal
+        kernel_regularizer:
+            L2_Regularizer: 0.001
+        activity_regularizer:
+            L2_Regularizer: 0.001
+    
+    - Dense: # One-hot output
+        units: 2
+        activation: softmax

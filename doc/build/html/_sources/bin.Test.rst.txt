@@ -1,0 +1,22 @@
+bin.Test package
+================
+
+Submodules
+----------
+
+bin.Test.Test\_Data module
+--------------------------
+
+.. automodule:: bin.Test.Test_Data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: bin.Test
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+export LANG=C
+
+#
+find $1 -type f -not -name '*.vocab' -not -name '*.stem' -exec dostem {} \;
+find $1 -name '*.vocab' -exec grep -H . {} \; 2> /dev/null  | sort -k3 > concordance.$1
+find $1 -name '*vocab' -exec cat {} \; 2> /dev/null | sed -e 's/.* //' | sort | uniq -c > vocab.$1
+grep -v '[0-9] .*[0-9]' vocab.$1 | grep -v ' 1 ' > vocab.$1.nonum
+join -o1.1,1.2 -v1 -12 vocab.$1.nonum english.stop.stem | grep -v '^1 ' > df.$1
+grep -v ' .*[0-9]' df.$1 | cat -n  | join -13 -23 - concordance.$1 | sort -k4,4 -k2,2n > tfdf.$1.sort
+N=`find $1 -name '*.vocab' | wc -l`
+echo $N > N.$1
+N=`cat N.$1`
+#echo N $N
+dotfidf $N < tfdf.$1.sort > svm.$1.fil
+

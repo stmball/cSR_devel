@@ -1,0 +1,9 @@
+
+Sequence:
+  - Parallel:
+      - EmbSequence:
+          field:      text
+          seq_length: 40
+          embeddings: ELMo
+          throughput: 16000
+

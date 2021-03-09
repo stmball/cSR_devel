@@ -1,0 +1,408 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>csr.ML.meta &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for csr.ML.meta</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">from</span> <span class="nn">scipy.sparse</span> <span class="kn">import</span> <span class="n">issparse</span><span class="p">,</span> <span class="n">csr_matrix</span>
+
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">metrics</span><span class="p">,</span> <span class="n">preprocessing</span>
+<span class="kn">from</span> <span class="nn">sklearn.linear_model.base</span> <span class="kn">import</span> <span class="n">LinearClassifierMixin</span>
+<span class="kn">from</span> <span class="nn">sklearn.utils</span> <span class="kn">import</span> <span class="n">check_array</span>
+
+<span class="kn">from</span> <span class="nn">csr</span> <span class="kn">import</span> <span class="n">Log</span>
+
+<span class="n">STATUS</span> <span class="o">=</span> <span class="n">Log</span><span class="o">.</span><span class="n">start_statusbar</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+<div class="viewcode-block" id="safe_sparse_multiply"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.safe_sparse_multiply">[docs]</a><span class="k">def</span> <span class="nf">safe_sparse_multiply</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">dense_output</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Multiply that handles the sparse matrix case correctly.</span>
+<span class="sd">    Because it is too much to expect multiplication to behave</span>
+<span class="sd">    consistently in numpy and scipy...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">or</span> <span class="n">issparse</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>
+        <span class="c1"># b is ducktyped so it doesn&#39;t matter if it&#39;s a numpy array</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dense_output</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="s2">&quot;toarray&quot;</span><span class="p">):</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">ret</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">ret</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span></div>
+
+
+<div class="viewcode-block" id="LINEAR_get_activation_pattern"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.LINEAR_get_activation_pattern">[docs]</a><span class="k">def</span> <span class="nf">LINEAR_get_activation_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;coef_&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">NotFittedError</span><span class="p">(</span><span class="s2">&quot;This </span><span class="si">%(name)s</span><span class="s2"> instance is not fitted &quot;</span>
+                             <span class="s2">&quot;yet&quot;</span> <span class="o">%</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">})</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">check_array</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">accept_sparse</span><span class="o">=</span><span class="s1">&#39;csr&#39;</span><span class="p">)</span>
+
+    <span class="n">n_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_features</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;X has </span><span class="si">%d</span><span class="s2"> features per sample; expecting </span><span class="si">%d</span><span class="s2">&quot;</span>
+                         <span class="o">%</span> <span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_features</span><span class="p">))</span>
+    
+<span class="c1">#    scores = safe_sparse_multiply(X, self.coef_) + self.intercept_</span>
+    <span class="c1"># The intercept is a scaler, so it only shifts the the pattern</span>
+    <span class="c1"># It would however make the results dense</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">safe_sparse_multiply</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="p">)</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+    
+    <span class="k">assert</span> <span class="n">scores</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span> <span class="c1"># We should have one value per sample/feature pair</span>
+
+    <span class="c1"># Note: the activation pattern columne must not change depending</span>
+    <span class="c1"># on X, which means that we cannot calculate std from the data</span>
+    <span class="c1"># we receive here</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_train_std_X&#39;</span><span class="p">):</span>
+        <span class="n">feature_importance</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_train_std_X</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># This should give the same results, assuming the input data</span>
+        <span class="c1"># from the pipeline was normalized</span>
+        <span class="n">feature_importance</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">top_n_features</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">feature_importance</span><span class="p">)[</span><span class="o">-</span><span class="mi">100</span><span class="p">:][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>    
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[:,</span> <span class="n">top_n_features</span><span class="p">]</span>
+    
+    <span class="k">return</span> <span class="n">scores</span></div>
+<span class="n">LinearClassifierMixin</span><span class="o">.</span><span class="n">get_activation_pattern</span> <span class="o">=</span> <span class="n">LINEAR_get_activation_pattern</span>
+
+<span class="c1"># Monkey patch for keeping the std of the training data</span>
+<span class="c1"># Not currently used</span>
+<span class="c1"># Note that we might have fit the model using partial fit</span>
+<span class="c1">#LINEAR_orig_fit = LinearClassifierMixin.fit</span>
+<span class="c1">#def LINEAR_fit(self, X, *args, **kw_args):</span>
+<span class="c1">#    self._train_std_X = numpy.std(X, 0)</span>
+<span class="c1">#    return LINEAR_orig_fit(self, X, *args, **kw_args)</span>
+<span class="c1">#LinearClassifierMixin.fit = LINEAR_get_activation_pattern</span>
+
+<span class="n">RFData</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;RFData&#39;</span><span class="p">,</span> <span class="s1">&#39;indices, scores, global_features&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_safe_sparse_hstack</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+<span class="c1">#    i = 0</span>
+<span class="c1">#    for block in X:</span>
+<span class="c1">#        i += 1</span>
+<span class="c1">#        STATUS[10](&#39;Block %i: [%i x %i]&#39; % (i, block.shape[0], block.shape[1]))</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">X</span><span class="p">]):</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">X</span>
+
+<span class="k">def</span> <span class="nf">_safe_sparse_vstack</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">X</span><span class="p">]):</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">X</span>
+
+<div class="viewcode-block" id="MetaClassifier"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.MetaClassifier">[docs]</a><span class="k">class</span> <span class="nc">MetaClassifier</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">classifier_prot</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">static_classifiers</span><span class="p">,</span> <span class="n">RF_data_train</span><span class="p">,</span> <span class="n">RF_data_test</span><span class="p">):</span>
+        <span class="n">STATUS</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="s1">&#39;Building metaclassifier...&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_classifier_prot</span> <span class="o">=</span> <span class="n">classifier_prot</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_classifier_prot</span><span class="p">,</span> <span class="s1">&#39;build&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span> <span class="o">=</span> <span class="n">classifier_prot</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span> <span class="o">=</span> <span class="n">classifier_prot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X</span> <span class="o">=</span> <span class="n">X</span> <span class="c1"># Not necessary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Y</span> <span class="o">=</span> <span class="n">labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_static_classifiers</span> <span class="o">=</span> <span class="n">static_classifiers</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X_p</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">classifier</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_static_classifiers</span><span class="p">:</span>
+            <span class="n">STATUS</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="s1">&#39;Extracting conf...&#39;</span><span class="p">)</span>
+                <span class="c1">#conf = numpy.array([numpy.random.rand(len(X))]).T</span>
+            <span class="n">conf</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">classifier</span><span class="o">.</span><span class="n">calculate_score</span><span class="p">(</span><span class="n">X</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_X_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span>
+            <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s1">&#39;Conf: [</span><span class="si">%i</span><span class="s1"> x </span><span class="si">%i</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">conf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+<span class="c1">#                STATUS.status(&#39;Extracting activation pattern...&#39;)</span>
+<span class="c1">#                X_p = scipy.sparse.rand(len(X), 100, 0.3)</span>
+<span class="c1">#                X_p = classifier.get_activation_pattern(X)</span>
+<span class="c1">#                X_p = preprocessing.scale(X_p, axis = 0, with_mean = False)</span>
+<span class="c1">#                STATUS[10](&#39;X_p: [%i x %i]&#39; % (X_p.shape[0], X_p.shape[1]))</span>
+<span class="c1">#                self._X_p.append(X_p)             </span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X_p</span> <span class="o">=</span> <span class="n">_safe_sparse_hstack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X_p</span><span class="p">)</span>
+                
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X_p</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+        <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s1">&#39;Done&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_train</span> <span class="o">=</span> <span class="n">RF_data_train</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_test</span> <span class="o">=</span> <span class="n">RF_data_test</span>
+    
+<div class="viewcode-block" id="MetaClassifier.rebuild_classifier"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.MetaClassifier.rebuild_classifier">[docs]</a>    <span class="k">def</span> <span class="nf">rebuild_classifier</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classifier_prot</span><span class="o">.</span><span class="n">build</span><span class="p">()</span></div>
+    
+<div class="viewcode-block" id="MetaClassifier.train"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.MetaClassifier.train">[docs]</a>    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        
+        <span class="n">STATUS</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="s1">&#39;Training...&#39;</span><span class="p">)</span>
+        <span class="c1"># We don&#39;t need to do this every iteration but we can decrease</span>
+        <span class="c1"># the GPU memory footprint by using smaller random samples</span>
+        <span class="c1"># rather than a huge batch</span>
+        <span class="n">test_n</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_test</span><span class="p">))</span>
+        <span class="n">test_i</span>   <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_test</span><span class="p">)),</span> <span class="n">test_n</span><span class="p">)</span>
+        <span class="n">test_X_t</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">test_y</span>   <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">test_i</span><span class="p">:</span>
+            <span class="n">X_t</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_meta_trainer_X_t</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_test</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">test_X_t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">X_t</span><span class="p">)</span>
+            <span class="n">test_y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="c1">#        test_X_t  = _safe_sparse_vstack(test_X_t)</span>
+        <span class="c1">#        test_y    = list(itertools.chain(*test_y))</span>
+        
+        <span class="n">last_score</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">last_classifier</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">overfit_attempts_remaining</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="k">for</span> <span class="n">training_iteration</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
+            <span class="n">train_i</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_train</span><span class="p">)),</span> <span class="mi">50</span><span class="p">)</span>
+            <span class="n">train_X_t</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">train_y</span>   <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">train_i</span><span class="p">:</span>
+                <span class="n">X_t</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_meta_trainer_X_t</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_RF_data_train</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                                    <span class="n">undersample</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                                    <span class="n">sampling_method</span> <span class="o">=</span> <span class="s1">&#39;uniform&#39;</span>
+                                                    <span class="p">)</span>
+                <span class="n">train_X_t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">X_t</span><span class="p">)</span>
+                <span class="n">train_y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">train_X_t</span><span class="p">):</span> <span class="n">train_X_t</span> <span class="o">=</span> <span class="n">train_X_t</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span>
+            <span class="n">train_X_t</span>  <span class="o">=</span> <span class="n">_safe_sparse_vstack</span><span class="p">(</span><span class="n">train_X_t</span><span class="p">)</span>
+            <span class="n">train_y</span>    <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="n">train_y</span><span class="p">))</span>
+            <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s1">&#39;Constructed train data: [</span><span class="si">%i</span><span class="s1"> x </span><span class="si">%i</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">train_X_t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                              <span class="n">train_X_t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            
+            <span class="n">last_classifier</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">train_X_t</span><span class="p">,</span> <span class="n">train_y</span><span class="p">,</span> <span class="n">classes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">])</span>
+<span class="c1">#            self._classifier.fit(train_X_t, train_y)</span>
+            
+            <span class="n">ap_values</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">ap_values_baseline</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">test_X_t</span><span class="p">,</span> <span class="n">test_y</span><span class="p">):</span>
+                <span class="k">assert</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+                <span class="n">truth</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span>
+                <span class="k">if</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">y</span><span class="p">)[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">pass</span>
+<span class="c1">#                    ap_values.append(0)</span>
+<span class="c1">#                    ap_values_baseline.append(0)</span>
+                    <span class="c1"># ...or just ignore these?</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">X</span><span class="p">):</span> <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span>
+                    <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                    <span class="n">ap</span>   <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">average_precision_score</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
+                    <span class="c1"># RF score is in first column</span>
+<span class="c1">#                    if scipy.sparse.issparse(X):</span>
+<span class="c1">#                        conf_baseline = list(itertools.chain(*X[:, 0].toarray()))</span>
+<span class="c1">#                    else:</span>
+                    <span class="n">conf_baseline</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                    <span class="n">ap_baseline</span>   <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">average_precision_score</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">conf_baseline</span><span class="p">)</span>
+                    <span class="n">ap_values_baseline</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ap_baseline</span><span class="p">)</span>
+                    <span class="n">ap_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ap</span> <span class="o">-</span> <span class="n">ap_baseline</span><span class="p">)</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ap_values</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Epoch </span><span class="si">%4i</span><span class="s2">: MAP diff </span><span class="si">%+.3f</span><span class="s2"> (baseline: </span><span class="si">%.3f</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">training_iteration</span><span class="p">,</span>
+                                                                  <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ap_values</span><span class="p">),</span>
+                                                                  <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ap_values_baseline</span><span class="p">))</span>
+            <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">score</span> <span class="o">&lt;</span> <span class="n">last_score</span><span class="p">:</span>
+                <span class="c1"># We are starting to overfit</span>
+                <span class="c1"># Revert last update</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s1">&#39;Overfitting. Reverting last training attempt...&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">last_classifier</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">overfit_attempts_remaining</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">return</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">overfit_attempts_remaining</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">overfit_attempts_remaining</span> <span class="o">=</span> <span class="mi">5</span>
+                <span class="n">last_score</span> <span class="o">=</span> <span class="n">score</span></div>
+<span class="c1">#            STATUS.status(msg)</span>
+<span class="c1">#        STATUS.status(&#39;&#39;)</span>
+    
+<div class="viewcode-block" id="MetaClassifier.calculate_score"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.MetaClassifier.calculate_score">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rf_data</span><span class="p">):</span>
+        <span class="n">X_t</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_meta_trainer_X_t</span><span class="p">(</span><span class="n">rf_data</span><span class="p">)</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_classifier</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X_t</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">conf</span></div>
+    
+<div class="viewcode-block" id="MetaClassifier.make_meta_trainer_X_t"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.meta.MetaClassifier.make_meta_trainer_X_t">[docs]</a>    <span class="k">def</span> <span class="nf">make_meta_trainer_X_t</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rf_data</span><span class="p">,</span> <span class="n">undersample</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">sampling_method</span> <span class="o">=</span> <span class="s1">&#39;uniform&#39;</span><span class="p">):</span>
+        
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_Y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">rf_data</span><span class="o">.</span><span class="n">indices</span><span class="p">]</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+<span class="c1">#        assert counts[&#39;Y&#39;] &gt; 0,           &quot;Training data without positive labels&quot;</span>
+<span class="c1">#        assert counts[&#39;Y&#39;] &lt; len(labels), &quot;Training data without negative labels&quot;</span>
+<span class="c1">#        STATUS[10](&quot;Using RF block of length %i, Y: %i, N: %i&quot; % (len(rf_data.indices),</span>
+<span class="c1">#                                                                  counts[&#39;Y&#39;],</span>
+<span class="c1">#                                                                  counts[&#39;N&#39;]))</span>
+        
+        <span class="k">if</span> <span class="n">undersample</span><span class="p">:</span>
+            <span class="c1"># Undersample</span>
+            <span class="n">pos_i_local</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">neg_i_local</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;Y&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">opt_n</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pos_i_local</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">neg_n</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">opt_n</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">neg_i_local</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">sampling_method</span> <span class="o">==</span> <span class="s1">&#39;false positives&#39;</span><span class="p">:</span>
+                <span class="c1"># Variant of uncertainty sampling intended to return</span>
+                <span class="c1"># (on average) for every positive sample one negative</span>
+                <span class="c1"># sample ranked higher</span>
+                <span class="c1"># Prob is prop to the number of &#39;Y&#39; after it</span>
+                <span class="n">prob</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="c1"># ...and on average one from the tail end</span>
+                <span class="c1"># This also assures some probability &gt; 0</span>
+                <span class="n">prob</span> <span class="o">=</span> <span class="n">prob</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">neg_i_local</span><span class="p">)</span>
+                <span class="n">prob</span> <span class="o">=</span> <span class="n">prob</span><span class="p">[</span><span class="n">neg_i_local</span><span class="p">]</span>
+                <span class="n">prob</span> <span class="o">=</span> <span class="n">prob</span> <span class="o">/</span> <span class="nb">sum</span><span class="p">(</span><span class="n">prob</span><span class="p">)</span>
+                <span class="n">neg_i_local</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">neg_i_local</span><span class="p">,</span> <span class="n">neg_n</span><span class="p">,</span>
+                                                  <span class="n">p</span> <span class="o">=</span> <span class="n">prob</span><span class="p">,</span>
+                                                  <span class="n">replace</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">sampling_method</span> <span class="o">==</span> <span class="s1">&#39;uniform&#39;</span><span class="p">:</span>
+                <span class="c1"># Uniform sampling</span>
+                <span class="n">neg_i_local</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">neg_i_local</span><span class="p">,</span> <span class="n">neg_n</span><span class="p">)</span>
+            <span class="n">indices_local</span> <span class="o">=</span> <span class="n">pos_i_local</span> <span class="o">+</span> <span class="n">neg_i_local</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">indices_local</span><span class="p">)</span>
+            
+            <span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">rf_data</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices_local</span><span class="p">]</span>
+            <span class="n">scores</span>  <span class="o">=</span> <span class="p">[</span><span class="n">rf_data</span><span class="o">.</span><span class="n">scores</span> <span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices_local</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">rf_data</span><span class="o">.</span><span class="n">indices</span>
+            <span class="n">scores</span>  <span class="o">=</span> <span class="n">rf_data</span><span class="o">.</span><span class="n">scores</span>
+        
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+<span class="c1">#        STATUS[10](&quot;         undersampled to %i&quot; % (n))</span>
+        <span class="n">X_p</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Convention: first column is RF score</span>
+        <span class="n">X_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">scores</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">feature_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;n_pos_found&#39;</span><span class="p">,</span> <span class="s1">&#39;n_feedback&#39;</span><span class="p">]:</span>
+            <span class="n">feature</span> <span class="o">=</span> <span class="n">rf_data</span><span class="o">.</span><span class="n">global_features</span><span class="p">[</span><span class="n">feature_name</span><span class="p">]</span>
+            <span class="c1"># Features used atm are amount of feedback and positives found</span>
+            <span class="c1"># This custom scaling is engineered to be indicative for features in</span>
+            <span class="c1"># the range (0, 256] and to be more discriminative for lower values</span>
+            <span class="n">feature</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="nb">abs</span><span class="p">(</span><span class="n">feature</span><span class="p">))</span><span class="o">/</span><span class="mi">8</span><span class="p">,</span> <span class="n">feature</span><span class="p">)</span>
+            <span class="n">X_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">feature</span><span class="p">]</span> <span class="o">*</span> <span class="n">n</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+<span class="c1">#        rf_stage = rf_data.global_features[&#39;RF_stage&#39;]</span>
+<span class="c1">#        X_p.append(numpy.array([[rf_stage] * n]).T)</span>
+<span class="c1">#        perc_feedback = rf_data.global_features[&#39;perc_feedback&#39;]</span>
+<span class="c1">#        X_p.append(numpy.array([[perc_feedback] * n]).T)</span>
+        
+        <span class="n">X_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X_p</span><span class="p">[</span><span class="n">indices</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="n">X_p</span> <span class="o">=</span> <span class="n">_safe_sparse_hstack</span><span class="p">(</span><span class="n">X_p</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">X_p</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">n</span>
+<span class="c1">#        STATUS[10](&#39;Constructed training block: [%i x %i]&#39; % (X_p.shape[0], X_p.shape[1]))</span>
+        
+        <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_Y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        
+        <span class="k">return</span> <span class="p">(</span><span class="n">X_p</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span> <span class="o">=</span> <span class="s1">&#39;Construct meta classifier&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--static_models&#39;</span><span class="p">,</span>    <span class="n">nargs</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">required</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span> <span class="o">=</span> <span class="s1">&#39;Pickled static model files to be used as helpers in meta training&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--classifier&#39;</span><span class="p">,</span>       <span class="n">required</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Classifier parameters encoded in YAML for meta classification.&quot;</span><span class="p">)</span>
+    
+    <span class="n">static_models</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">static_models</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">model_filename</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">static_models</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">model_filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">model_file</span><span class="p">:</span>
+                <span class="n">loaded_model</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">model_file</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">loaded_model</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">7</span><span class="p">](</span><span class="s2">&quot;Loading static model from file: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">model_filename</span><span class="p">)</span>
+                <span class="n">static_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">StaticModel</span><span class="p">(</span><span class="n">pipeline</span>   <span class="o">=</span> <span class="n">loaded_model</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                 <span class="n">classifier</span> <span class="o">=</span> <span class="n">loaded_model</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">7</span><span class="p">](</span><span class="s2">&quot;Done&quot;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

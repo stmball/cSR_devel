@@ -1,0 +1,13 @@
+#!/bin/bash
+
+export LANG=C
+
+#
+N=`find $1 -type f | wc -l`
+find $1 -type f -exec ~/featurekit/dosteminline {} \; | sort -k3 > concordance.$1
+
+cat -n df | join -13 -23 - concordance.$1 | sort -k4,4 -k2,2n > tfdf.$1.sort
+N=`cat N`
+echo N $N
+~/featurekit/dotfidfinline $N < tfdf.$1.sort > svm.$1.fil
+

@@ -1,0 +1,461 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>bin.Medline &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for bin.Medline</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">Bio</span> <span class="kn">import</span> <span class="n">Entrez</span>
+
+<span class="c1"># Only used for the parser hack</span>
+<span class="c1"># TODO: import c version?</span>
+<span class="kn">from</span> <span class="nn">xml.etree</span> <span class="kn">import</span> <span class="n">ElementTree</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">lxml</span> <span class="kn">import</span> <span class="n">html</span>
+
+<span class="kn">from</span> <span class="nn">bin.Data</span> <span class="kn">import</span> <span class="n">DataStream</span>
+
+<div class="viewcode-block" id="convert_document_id"><a class="viewcode-back" href="../../bin.html#bin.Medline.convert_document_id">[docs]</a><span class="k">def</span> <span class="nf">convert_document_id</span><span class="p">(</span><span class="n">doc_id</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">id_type</span><span class="o">=</span><span class="s1">&#39;PMC&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert document id to dictionary of other id</span>
+<span class="sd">        see: http://www.ncbi.nlm.nih.gov/pmc/tools/id-converter-api/ for more info</span>
+<span class="sd">        Based on:</span>
+<span class="sd">        https://github.com/titipata/pubmed_parser/blob/master/pubmed_parser/pubmed_web_parser.py</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">doc_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">doc_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">id_type</span> <span class="o">==</span> <span class="s1">&#39;PMC&#39;</span><span class="p">:</span>
+                <span class="n">doc_id</span> <span class="o">=</span> <span class="s1">&#39;PMC</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">doc_id</span>
+                <span class="n">pmc</span> <span class="o">=</span> <span class="n">doc_id</span>
+                <span class="n">convert_link</span> <span class="o">=</span> <span class="s1">&#39;http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?tool=custom&amp;email=</span><span class="si">%s</span><span class="s1">&amp;ids=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">id_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;PMID&#39;</span><span class="p">,</span> <span class="s1">&#39;DOI&#39;</span><span class="p">,</span> <span class="s1">&#39;OTHER&#39;</span><span class="p">]:</span>
+                <span class="n">convert_link</span> <span class="o">=</span> <span class="s1">&#39;http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?tool=custom&amp;email=</span><span class="si">%s</span><span class="s1">&amp;ids=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">doc_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Give id_type from PMC or PMID or DOI or OTHER&#39;</span><span class="p">)</span>
+        
+        <span class="n">convert_page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">convert_link</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">convert_page</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="n">convert_tree</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">convert_page</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">convert_tree</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;record&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">attrib</span>
+        <span class="k">if</span> <span class="s1">&#39;status&#39;</span> <span class="ow">in</span> <span class="n">record</span> <span class="ow">or</span> <span class="s1">&#39;pmcid&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot convert given document id to PMC&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">id_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;PMID&#39;</span><span class="p">,</span> <span class="s1">&#39;DOI&#39;</span><span class="p">,</span> <span class="s1">&#39;OTHER&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="s1">&#39;pmcid&#39;</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
+                        <span class="n">pmc</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;pmcid&#39;</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                        <span class="n">pmc</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;pmc&#39;</span><span class="p">:</span> <span class="n">pmc</span><span class="p">,</span>
+                <span class="s1">&#39;pmid&#39;</span><span class="p">:</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;pmid&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;pmid&#39;</span> <span class="ow">in</span> <span class="n">record</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;doi&#39;</span><span class="p">:</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;doi&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;doi&#39;</span> <span class="ow">in</span> <span class="n">record</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">}</span></div>
+
+<div class="viewcode-block" id="add_pmids_from_dois"><a class="viewcode-back" href="../../bin.html#bin.Medline.add_pmids_from_dois">[docs]</a><span class="k">def</span> <span class="nf">add_pmids_from_dois</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">records</span><span class="p">):</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Handling record </span><span class="si">%i</span><span class="s2">/</span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="o">.</span><span class="n">PMID</span><span class="p">:</span>
+<span class="c1">#                        ids = convert_document_id(row.doi, email, id_type=&#39;DOI&#39;)</span>
+                        <span class="n">pmids</span> <span class="o">=</span> <span class="n">retrieve_by_query</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">doi</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pmids</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="n">pmids</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">PMID</span><span class="p">)</span>
+                                <span class="n">row</span><span class="o">.</span><span class="n">PMID</span> <span class="o">=</span> <span class="n">pmids</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">PMID</span></div>
+
+<div class="viewcode-block" id="retrieve_by_query"><a class="viewcode-back" href="../../bin.html#bin.Medline.retrieve_by_query">[docs]</a><span class="k">def</span> <span class="nf">retrieve_by_query</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">queries</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function is _not_ reentrant unless the email given is constant</span>
+<span class="sd">        from call to call.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># We really shouldn&#39;t run the queries separately</span>
+        <span class="c1"># Assume that the queries can be ORed together</span>
+        <span class="c1"># This is true iff OR has the lowest priority in the query language</span>
+        <span class="c1"># TODO: check this!</span>
+<span class="c1">#        if isinstance(queries, basestring): queries = [queries]</span>
+        <span class="n">query_string</span> <span class="o">=</span> <span class="s2">&quot; OR &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span>
+
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Retrieving all references matching the query:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">query_string</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Required by the NCBI since 2010 to curb abuse</span>
+        <span class="n">Entrez</span><span class="o">.</span><span class="n">email</span> <span class="o">=</span> <span class="n">email</span>
+        <span class="c1"># TODO: Sanity check that the email given is valid</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="s2">&quot;PMID&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># esearch can return a maximum of 100K articles per query. If we want to retrieve</span>
+                <span class="c1"># more than that we need to iterate, setting incremental values of retstart</span>
+                <span class="c1"># Retrieve a fraction of the results for now</span>
+                <span class="n">handle</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">esearch</span><span class="p">(</span><span class="n">db</span><span class="o">=</span><span class="s2">&quot;pubmed&quot;</span><span class="p">,</span>
+                                        <span class="n">term</span><span class="o">=</span><span class="n">query_string</span><span class="p">,</span>
+                                        <span class="n">sort</span><span class="o">=</span><span class="s2">&quot;pub date&quot;</span><span class="p">,</span>
+                                        <span class="n">retmode</span><span class="o">=</span><span class="s2">&quot;xml&quot;</span><span class="p">,</span>
+                                        <span class="n">retstart</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span>
+                                        <span class="n">retmax</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+                <span class="c1"># Validate requires a DTD to either be installed or retrieved separately</span>
+                <span class="c1"># Skip for now</span>
+                <span class="c1"># Note: Read fails for efetch responses in versions of Biopython</span>
+                <span class="c1"># The following may or may not work depending on which version is installed:</span>
+                <span class="c1"># ~ record = Entrez.read(handle, validate=False)</span>
+                <span class="c1"># Workaround hack, should work in any version of biopython but will</span>
+                <span class="c1"># fail horribly if the NCBI ever changes the xml format</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+<span class="c1">#                count = int(res.find(&#39;Count&#39;).text)</span>
+<span class="c1">#                sys.stderr.write(&quot;%i references found\n&quot; % count)</span>
+<span class="c1">#                if count &gt; n:</span>
+<span class="c1">#                        sys.stderr.write(&quot;Retrieved articles %i--%i\n&quot; % (offset+1, offset+count))</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">res</span><span class="o">.</span><span class="n">iterfind</span><span class="p">(</span><span class="s1">&#39;IdList/Id&#39;</span><span class="p">):</span>
+                        <span class="n">record</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">text</span><span class="p">])</span>
+        <span class="k">finally</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span> <span class="n">handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span> <span class="k">pass</span> <span class="c1"># If the db lookup throws there is no handle to close</span>
+        
+        <span class="k">return</span> <span class="n">record</span></div>
+
+<div class="viewcode-block" id="retrieve_fulltext"><a class="viewcode-back" href="../../bin.html#bin.Medline.retrieve_fulltext">[docs]</a><span class="k">def</span> <span class="nf">retrieve_fulltext</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">input_records</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves fulltext articles from PubMed Central. Input should at least have a PMID field. All field values are retained in the output, but the order of the fields is not guaranteed to be preserved. This function is _not_ reentrant unless the email given is constant from call to call.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Required by the NCBI since 2010 to curb abuse</span>
+        <span class="n">Entrez</span><span class="o">.</span><span class="n">email</span> <span class="o">=</span> <span class="n">email</span>
+
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Extracting </span><span class="si">%i</span><span class="s2"> records</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_records</span><span class="p">))</span>
+
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;fulltext&#39;</span><span class="p">]</span>
+        <span class="n">extra_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">input_records</span><span class="o">.</span><span class="n">header</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">]</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">fields</span> <span class="o">+</span> <span class="n">extra_fields</span><span class="p">))</span>
+
+        
+        <span class="n">batch_i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">5000</span>
+        
+        <span class="n">sought_pmids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">input_records</span><span class="o">.</span><span class="n">PMID</span><span class="p">)))</span>
+        <span class="n">pmcids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([])</span>
+        
+        <span class="k">for</span> <span class="n">ret_start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">),</span> <span class="n">batch_size</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">batch_i</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="k">break</span>
+                <span class="n">batch_i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">ret_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">ret_start</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Processing batch </span><span class="si">%i</span><span class="s2"> (range [</span><span class="si">%i</span><span class="s2">, </span><span class="si">%i</span><span class="s2">])</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">batch_i</span><span class="p">,</span>
+                                                                             <span class="n">ret_start</span><span class="p">,</span>
+                                                                             <span class="n">ret_end</span><span class="p">))</span>
+                <span class="n">batch_pmids</span> <span class="o">=</span> <span class="n">sought_pmids</span><span class="p">[</span><span class="n">ret_start</span><span class="p">:</span><span class="n">ret_end</span><span class="p">]</span>
+                <span class="n">id_string</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">batch_pmids</span><span class="p">)</span>
+                
+                <span class="c1"># Entrez gives a set to set mapping and doesn&#39;t care about order</span>
+                <span class="c1"># or missing links. Thus the only way to get a mapping from pmid</span>
+                <span class="c1"># to pmcid (and catch those missing) is by querying each independently.</span>
+                <span class="n">handle</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">elink</span><span class="p">(</span><span class="n">dbfrom</span> <span class="o">=</span> <span class="s1">&#39;pubmed&#39;</span><span class="p">,</span> <span class="n">db</span> <span class="o">=</span> <span class="s1">&#39;pmc&#39;</span><span class="p">,</span>
+                                      <span class="n">linkname</span> <span class="o">=</span> <span class="s1">&#39;pubmed_pmc&#39;</span><span class="p">,</span>
+                                      <span class="nb">id</span> <span class="o">=</span> <span class="n">id_string</span><span class="p">,</span>
+                                      <span class="n">retmode</span> <span class="o">=</span> <span class="s1">&#39;xml&#39;</span><span class="p">)</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">validate</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;LinkSetDb&#39;</span><span class="p">]:</span>
+                        <span class="n">batch_pmcids</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="s1">&#39;Id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;LinkSetDb&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;Link&#39;</span><span class="p">]]</span>
+                <span class="k">else</span><span class="p">:</span>
+                        <span class="n">batch_pmcids</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1">#                sys.stderr.write(&quot;Found %i PMCIDs\n&quot; % len(batch_pmcids))</span>
+                <span class="n">pmcids</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">batch_pmcids</span><span class="p">)</span>
+        
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Found </span><span class="si">%i</span><span class="s2"> PMCIDs</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">pmcids</span><span class="p">))</span>
+
+        <span class="n">id_string</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pmcids</span><span class="p">)</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">efetch</span><span class="p">(</span><span class="n">db</span> <span class="o">=</span> <span class="s2">&quot;pmc&quot;</span><span class="p">,</span>
+                               <span class="nb">id</span> <span class="o">=</span> <span class="n">id_string</span><span class="p">,</span>
+                               <span class="n">rettype</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
+                               <span class="n">retmode</span> <span class="o">=</span> <span class="s2">&quot;xml&quot;</span><span class="p">)</span>
+        <span class="c1">#response = Entrez.read(handle, validate = False)</span>
+        <span class="n">articles</span> <span class="o">=</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+        <span class="n">pmid_to_article</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">article</span> <span class="ow">in</span> <span class="n">articles</span><span class="p">:</span>
+                <span class="c1"># ElementTree queries are horribly broken</span>
+                <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">article</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;.//pub-id&quot;</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">tag</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;pub-id-type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pmid&#39;</span><span class="p">:</span>
+                                <span class="n">pmid</span> <span class="o">=</span> <span class="n">tag</span><span class="o">.</span><span class="n">text</span>
+                <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">article</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;.//article-id&quot;</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">tag</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s1">&#39;pub-id-type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pmid&#39;</span><span class="p">:</span>
+                                <span class="n">pmid</span> <span class="o">=</span> <span class="n">tag</span><span class="o">.</span><span class="n">text</span>
+<span class="c1">#                if not pmid:</span>
+<span class="c1">#                        print(ElementTree.tostring(article))</span>
+<span class="c1">#                print(&quot;Article for PMID: &#39;%s&#39;&quot; % pmid)</span>
+                <span class="n">pmid_to_article</span><span class="p">[</span><span class="n">pmid</span><span class="p">]</span> <span class="o">=</span> <span class="n">article</span>
+        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">input_records</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">PMID</span> <span class="ow">in</span> <span class="n">pmid_to_article</span><span class="p">:</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">ElementTree</span><span class="o">.</span><span class="n">tostring</span><span class="p">(</span><span class="n">pmid_to_article</span><span class="p">[</span><span class="n">record</span><span class="o">.</span><span class="n">PMID</span><span class="p">])]</span>
+                <span class="k">else</span><span class="p">:</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;MISSING_DATA&#39;</span><span class="p">]</span>
+                <span class="n">extra_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">extra_fields</span><span class="p">]</span>
+                <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">values</span> <span class="o">+</span> <span class="n">extra_values</span><span class="p">)</span>
+                        
+        <span class="k">return</span> <span class="n">records</span></div>
+
+<div class="viewcode-block" id="retrieve_by_pmid"><a class="viewcode-back" href="../../bin.html#bin.Medline.retrieve_by_pmid">[docs]</a><span class="k">def</span> <span class="nf">retrieve_by_pmid</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">input_records</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves abstracts and metadata from PubMed. Input should at least have a PMID field. All field values are retained in the output, but the order of the fields is not guaranteed to be preserved. This function is _not_ reentrant unless the email given is constant from call to call.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Required by the NCBI since 2010 to curb abuse</span>
+        <span class="n">Entrez</span><span class="o">.</span><span class="n">email</span> <span class="o">=</span> <span class="n">email</span>
+
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Extracting </span><span class="si">%i</span><span class="s2"> records</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_records</span><span class="p">))</span>
+        
+        <span class="k">def</span> <span class="nf">extract_abstract_section</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">section</span><span class="p">):</span>
+                <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">blocks</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="s1">&#39;attributes&#39;</span><span class="p">)]</span>
+                <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">blocks</span> <span class="k">if</span> <span class="s1">&#39;NlmCategory&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">attributes</span><span class="p">]</span>
+                <span class="k">return</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">blocks</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;NlmCategory&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">section</span><span class="p">])</span>
+        <span class="k">def</span> <span class="nf">extract_mesh_terms</span><span class="p">(</span><span class="n">headings</span><span class="p">):</span>
+                <span class="n">terms</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">heading</span> <span class="ow">in</span> <span class="n">headings</span><span class="p">:</span>
+                        <span class="n">field</span> <span class="o">=</span> <span class="n">heading</span><span class="p">[</span><span class="s1">&#39;DescriptorName&#39;</span><span class="p">]</span>
+                        <span class="n">major_topic</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;MajorTopicYN&#39;</span><span class="p">]</span>
+                        <span class="n">ui</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;UI&#39;</span><span class="p">]</span>
+                        <span class="n">terms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
+
+                        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">heading</span><span class="p">[</span><span class="s1">&#39;QualifierName&#39;</span><span class="p">]:</span>
+                                <span class="n">major_topic</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;MajorTopicYN&#39;</span><span class="p">]</span>
+                                <span class="n">ui</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;UI&#39;</span><span class="p">]</span>
+                                <span class="n">terms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">terms</span>
+        <span class="k">def</span> <span class="nf">try_extract</span><span class="p">(</span><span class="n">container</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+                <span class="sd">&#39;&#39;&#39; Returns [] if the key-value is not in the container &#39;&#39;&#39;</span>
+                <span class="k">try</span><span class="p">:</span> <span class="k">return</span> <span class="n">container</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span> <span class="k">return</span> <span class="p">[]</span>
+                <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span> <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">n_missing_abstracts</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">batch_i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">10000</span>
+        
+        <span class="c1"># There are two major gotchas here:</span>
+        <span class="c1">#   1) We cannot assume that Medline will return results in the same</span>
+        <span class="c1">#      order as we give it</span>
+        <span class="c1">#   2) PMIDs can be duplicate in the input (they are in cohen15)</span>
+        <span class="c1"># The solution to both is to extract from medline and store these for</span>
+        <span class="c1"># individual pmids, then reassociate the extracted data to the input</span>
+        <span class="c1"># Make unique list and make sure pmids are *strings*</span>
+        <span class="n">sought_pmids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">input_records</span><span class="o">.</span><span class="n">PMID</span><span class="p">)))</span>
+        <span class="n">extracted_records</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Extracting </span><span class="si">%i</span><span class="s2"> unique citations</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">ret_start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">),</span> <span class="n">batch_size</span><span class="p">):</span>
+                <span class="n">batch_i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">ret_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">ret_start</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Processing batch </span><span class="si">%i</span><span class="s2"> (range [</span><span class="si">%i</span><span class="s2">, </span><span class="si">%i</span><span class="s2">])</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">batch_i</span><span class="p">,</span>
+                                                                             <span class="n">ret_start</span><span class="p">,</span>
+                                                                             <span class="n">ret_end</span><span class="p">))</span>
+                <span class="n">batch_pmids</span> <span class="o">=</span> <span class="n">sought_pmids</span><span class="p">[</span><span class="n">ret_start</span><span class="p">:</span><span class="n">ret_end</span><span class="p">]</span>
+                <span class="n">id_string</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">batch_pmids</span><span class="p">)</span>
+                
+                <span class="k">try</span><span class="p">:</span>
+                        <span class="n">handle</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">efetch</span><span class="p">(</span><span class="n">db</span> <span class="o">=</span> <span class="s2">&quot;pubmed&quot;</span><span class="p">,</span>
+                                               <span class="nb">id</span> <span class="o">=</span> <span class="n">id_string</span><span class="p">,</span>
+                                               <span class="n">retmode</span> <span class="o">=</span> <span class="s2">&quot;xml&quot;</span><span class="p">)</span>
+                        <span class="c1"># Note: Read fails for efetch responses in versions of Biopython</span>
+                        <span class="c1"># The following may or may not work depending on which version is installed:</span>
+                        <span class="n">response</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">validate</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+<span class="c1">#                        print &quot;%i references returned&quot; % len(response[&#39;PubmedArticle&#39;])</span>
+                        <span class="k">for</span> <span class="n">citation</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;PubmedArticle&#39;</span><span class="p">]:</span>
+                                <span class="c1"># These first three fields should always be present</span>
+                                <span class="n">article</span> <span class="o">=</span> <span class="n">citation</span><span class="p">[</span><span class="s1">&#39;MedlineCitation&#39;</span><span class="p">][</span><span class="s1">&#39;Article&#39;</span><span class="p">]</span>
+                                <span class="n">title</span> <span class="o">=</span> <span class="n">article</span><span class="p">[</span><span class="s1">&#39;ArticleTitle&#39;</span><span class="p">]</span>
+                                <span class="n">pmid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">citation</span><span class="p">[</span><span class="s1">&#39;MedlineCitation&#39;</span><span class="p">][</span><span class="s1">&#39;PMID&#39;</span><span class="p">])</span>
+                                
+                                <span class="n">text</span> <span class="o">=</span> <span class="n">try_extract</span><span class="p">(</span><span class="n">try_extract</span><span class="p">(</span><span class="n">article</span><span class="p">,</span> <span class="s1">&#39;Abstract&#39;</span><span class="p">),</span> <span class="s1">&#39;AbstractText&#39;</span><span class="p">)</span>
+                                <span class="n">abstract_BACKGROUND</span>  <span class="o">=</span> <span class="n">extract_abstract_section</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="s1">&#39;BACKGROUND&#39;</span><span class="p">)</span>
+                                <span class="n">abstract_METHODS</span>     <span class="o">=</span> <span class="n">extract_abstract_section</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="s1">&#39;METHODS&#39;</span><span class="p">)</span>
+                                <span class="n">abstract_RESULTS</span>     <span class="o">=</span> <span class="n">extract_abstract_section</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="s1">&#39;RESULTS&#39;</span><span class="p">)</span>
+                                <span class="n">abstract_CONCLUSIONS</span> <span class="o">=</span> <span class="n">extract_abstract_section</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="s1">&#39;CONCLUSIONS&#39;</span><span class="p">)</span>
+                                <span class="n">abstract</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="ow">not</span> <span class="n">abstract</span><span class="p">:</span> <span class="n">n_missing_abstracts</span> <span class="o">+=</span> <span class="mi">1</span>
+                                <span class="n">pub_type_list</span> <span class="o">=</span> <span class="n">try_extract</span><span class="p">(</span><span class="n">article</span><span class="p">,</span> <span class="s1">&#39;PublicationTypeList&#39;</span><span class="p">)</span>
+                                <span class="n">publication_types</span> <span class="o">=</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pub_type_list</span><span class="p">)</span>
+                                <span class="n">keyword_list</span> <span class="o">=</span> <span class="n">try_extract</span><span class="p">(</span><span class="n">citation</span><span class="p">[</span><span class="s1">&#39;MedlineCitation&#39;</span><span class="p">],</span> <span class="s1">&#39;KeywordList&#39;</span><span class="p">)</span>
+                                <span class="n">keyword_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">xx</span> <span class="ow">in</span> <span class="n">keyword_list</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xx</span><span class="p">]</span> <span class="c1"># Flatten list</span>
+                                <span class="n">keywords</span> <span class="o">=</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">keyword_list</span><span class="p">)</span>
+                                <span class="n">mesh_list</span> <span class="o">=</span> <span class="n">try_extract</span><span class="p">(</span><span class="n">citation</span><span class="p">[</span><span class="s1">&#39;MedlineCitation&#39;</span><span class="p">],</span> <span class="s1">&#39;MeshHeadingList&#39;</span><span class="p">)</span>
+                                <span class="n">mesh_list</span> <span class="o">=</span> <span class="n">extract_mesh_terms</span><span class="p">(</span><span class="n">mesh_list</span><span class="p">)</span>
+<span class="c1">#                                mesh_list = [x for xx in mesh_list for x in xx] # Flatten list</span>
+                                <span class="n">mesh_terms</span> <span class="o">=</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">mesh_list</span><span class="p">)</span>
+                                <span class="n">journal</span> <span class="o">=</span> <span class="n">try_extract</span><span class="p">(</span><span class="n">citation</span><span class="p">[</span><span class="s1">&#39;MedlineCitation&#39;</span><span class="p">][</span><span class="s1">&#39;MedlineJournalInfo&#39;</span><span class="p">],</span> <span class="s1">&#39;MedlineTA&#39;</span><span class="p">)</span>
+                                <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">pmid</span><span class="p">,</span>
+                                          <span class="n">title</span><span class="p">,</span>
+                                          <span class="n">abstract_BACKGROUND</span><span class="p">,</span>
+                                          <span class="n">abstract_METHODS</span><span class="p">,</span>
+                                          <span class="n">abstract_RESULTS</span><span class="p">,</span>
+                                          <span class="n">abstract_CONCLUSIONS</span><span class="p">,</span>
+                                          <span class="n">abstract</span><span class="p">,</span>
+                                          <span class="n">publication_types</span><span class="p">,</span>
+                                          <span class="n">mesh_terms</span><span class="p">,</span>
+                                          <span class="n">keywords</span><span class="p">,</span>
+                                          <span class="n">journal</span><span class="p">]</span>
+                                <span class="n">extracted_records</span><span class="p">[</span><span class="n">pmid</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span>
+                                
+                <span class="k">finally</span><span class="p">:</span>
+                        <span class="k">try</span><span class="p">:</span> <span class="n">handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                        <span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span>
+                                <span class="k">pass</span> <span class="c1"># If the db lookup fails there is no handle to close</span>
+        
+        <span class="n">extracted_links</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Extracting </span><span class="si">%i</span><span class="s2"> unique linksets</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">ret_start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">),</span> <span class="n">batch_size</span><span class="p">):</span>
+                <span class="n">batch_i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">ret_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">ret_start</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sought_pmids</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Processing batch </span><span class="si">%i</span><span class="s2"> (range [</span><span class="si">%i</span><span class="s2">, </span><span class="si">%i</span><span class="s2">])</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">batch_i</span><span class="p">,</span>
+                                                                             <span class="n">ret_start</span><span class="p">,</span>
+                                                                             <span class="n">ret_end</span><span class="p">))</span>
+                <span class="n">batch_pmids</span> <span class="o">=</span> <span class="n">sought_pmids</span><span class="p">[</span><span class="n">ret_start</span><span class="p">:</span><span class="n">ret_end</span><span class="p">]</span>
+                
+                <span class="k">try</span><span class="p">:</span>
+                        <span class="n">handle</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">elink</span><span class="p">(</span><span class="n">db</span> <span class="o">=</span> <span class="s2">&quot;pubmed&quot;</span><span class="p">,</span>
+                                               <span class="n">dbfrom</span> <span class="o">=</span> <span class="s2">&quot;pubmed&quot;</span><span class="p">,</span>
+                                               <span class="nb">id</span> <span class="o">=</span> <span class="n">batch_pmids</span><span class="p">,</span>
+                                               <span class="n">retmode</span> <span class="o">=</span> <span class="s2">&quot;xml&quot;</span><span class="p">)</span>
+                        <span class="n">response</span> <span class="o">=</span> <span class="n">Entrez</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">validate</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+<span class="c1">#                        print &quot;%i references returned&quot; % len(response)</span>
+                        <span class="k">for</span> <span class="n">linkset</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+                                <span class="c1"># We only give one id, so we should receive only one</span>
+                                <span class="n">pmid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">linkset</span><span class="p">[</span><span class="s1">&#39;IdList&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                                
+                                <span class="n">refs</span> <span class="o">=</span> <span class="p">[]</span>
+                                <span class="n">similar</span> <span class="o">=</span> <span class="p">[]</span>
+                                <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">linkset</span><span class="p">[</span><span class="s1">&#39;LinkSetDb&#39;</span><span class="p">]:</span>
+                                        <span class="k">if</span> <span class="n">db</span><span class="p">[</span><span class="s1">&#39;LinkName&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pubmed_pubmed_refs&#39;</span><span class="p">:</span>
+                                                <span class="n">refs</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="s1">&#39;Id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">db</span><span class="p">[</span><span class="s1">&#39;Link&#39;</span><span class="p">]]</span>
+                                        <span class="k">if</span> <span class="n">db</span><span class="p">[</span><span class="s1">&#39;LinkName&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pubmed_pubmed&#39;</span><span class="p">:</span>
+                                                <span class="n">similar</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="s1">&#39;Id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">db</span><span class="p">[</span><span class="s1">&#39;Link&#39;</span><span class="p">]]</span>
+                                <span class="n">refs</span>    <span class="o">=</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span>
+                                <span class="n">similar</span> <span class="o">=</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">similar</span><span class="p">)</span>
+                                
+                                <span class="n">extracted_links</span><span class="p">[</span><span class="n">pmid</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">refs</span><span class="p">,</span> <span class="n">similar</span><span class="p">]</span>
+                                
+                <span class="k">finally</span><span class="p">:</span>
+                        <span class="k">try</span><span class="p">:</span> <span class="n">handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                        <span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span>
+                                <span class="k">pass</span> <span class="c1"># If the db lookup fails there is no handle to close</span>
+
+        <span class="c1"># Reassociate</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;PMID&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;title&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;abstract_BACKGROUND&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;abstract_METHODS&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;abstract_RESULTS&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;abstract_CONCLUSIONS&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;abstract&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;publication_types&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;mesh_terms&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;keywords&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;journal&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;references&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;similar_articles&#39;</span><span class="p">]</span>
+        <span class="c1"># We could use sets, but this preserves order</span>
+        <span class="c1"># Switch to sets if this ever becomes an issue speedwise</span>
+        <span class="n">extra_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">input_records</span><span class="o">.</span><span class="n">header</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">]</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">fields</span> <span class="o">+</span> <span class="n">extra_fields</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">input_records</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                        <span class="n">extra_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">extra_fields</span><span class="p">]</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="n">values</span> <span class="o">+=</span> <span class="n">extracted_records</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">PMID</span><span class="p">]</span>
+                        <span class="n">values</span> <span class="o">+=</span> <span class="n">extracted_links</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">PMID</span><span class="p">]</span>
+                        <span class="n">values</span> <span class="o">+=</span> <span class="n">extra_values</span>
+                        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                        <span class="c1"># Sometimes we are given erroneous data (e.g. pmid</span>
+                        <span class="c1"># 12168612 in cohen15)</span>
+                        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Missing pmid: </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">row</span><span class="o">.</span><span class="n">PMID</span><span class="p">)</span>
+                        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">f</span> <span class="ow">in</span> <span class="n">input_records</span><span class="o">.</span><span class="n">header</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">records</span><span class="o">.</span><span class="n">header</span><span class="p">])</span>
+        
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Extracted </span><span class="si">%i</span><span class="s2"> records</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">))</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Missing abstracts: </span><span class="si">%i</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">n_missing_abstracts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">records</span></div>
+
+        
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,445 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>csr.ML.pipeline &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for csr.ML.pipeline</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1"># ~~~~~~                    Import                  ~~~~~~</span>
+
+<span class="kn">from</span> <span class="nn">future.utils</span> <span class="kn">import</span> <span class="n">iteritems</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.base</span> <span class="kn">import</span> <span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span>
+<span class="kn">from</span> <span class="nn">sklearn.feature_extraction.text</span> <span class="kn">import</span> <span class="n">CountVectorizer</span><span class="p">,</span> <span class="n">TfidfTransformer</span>
+<span class="kn">from</span> <span class="nn">sklearn.pipeline</span> <span class="kn">import</span> <span class="n">Pipeline</span><span class="p">,</span> <span class="n">FeatureUnion</span><span class="p">,</span> <span class="n">make_pipeline</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">preprocessing</span>
+
+<span class="kn">from</span> <span class="nn">gensim.models.keyedvectors</span> <span class="kn">import</span> <span class="n">KeyedVectors</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+<span class="kn">import</span> <span class="nn">nltk</span>
+<span class="kn">from</span> <span class="nn">nltk.corpus</span> <span class="kn">import</span> <span class="n">stopwords</span>
+<span class="c1">#nltk.download(&#39;stopwords&#39;)</span>
+
+<span class="kn">from</span> <span class="nn">csr.Log</span> <span class="kn">import</span> <span class="n">start_statusbar</span>
+
+<span class="c1"># ~~~~~~                    Setup                   ~~~~~~</span>
+
+<span class="n">default_stemmer</span> <span class="o">=</span> <span class="n">nltk</span><span class="o">.</span><span class="n">stem</span><span class="o">.</span><span class="n">porter</span><span class="o">.</span><span class="n">PorterStemmer</span><span class="p">()</span>
+
+<span class="n">STATUS</span> <span class="o">=</span> <span class="n">start_statusbar</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+<span class="c1"># ~~~~~~                  Definitions               ~~~~~~</span>
+
+<span class="c1"># Identity transformer, does nothing</span>
+<span class="c1"># To be used where we assume that a transformer will be used but</span>
+<span class="c1"># we want to skip the step for some reason, for instance because</span>
+<span class="c1"># we want to check the baseline performance, or because the step</span>
+<span class="c1"># (feature selection for instance) is not necessary for our data</span>
+<div class="viewcode-block" id="IdentityTransformer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.IdentityTransformer">[docs]</a><span class="k">class</span> <span class="nc">IdentityTransformer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+<span class="c1">#    def __init__(self): pass</span>
+<div class="viewcode-block" id="IdentityTransformer.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.IdentityTransformer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span></div>
+<div class="viewcode-block" id="IdentityTransformer.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.IdentityTransformer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span> <span class="k">return</span> <span class="n">data</span></div></div>
+
+<div class="viewcode-block" id="TypecastTransformer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.TypecastTransformer">[docs]</a><span class="k">class</span> <span class="nc">TypecastTransformer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_type</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_type</span> <span class="o">=</span> <span class="n">target_type</span>
+<div class="viewcode-block" id="TypecastTransformer.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.TypecastTransformer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span></div>
+<div class="viewcode-block" id="TypecastTransformer.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.TypecastTransformer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span> <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_type</span><span class="p">)</span></div></div>
+
+<span class="c1"># Dense transformer</span>
+<div class="viewcode-block" id="DenseTransformer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.DenseTransformer">[docs]</a><span class="k">class</span> <span class="nc">DenseTransformer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+<div class="viewcode-block" id="DenseTransformer.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.DenseTransformer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">X</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span></div>
+<div class="viewcode-block" id="DenseTransformer.fit_transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.DenseTransformer.fit_transform">[docs]</a>    <span class="k">def</span> <span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></div>
+<div class="viewcode-block" id="DenseTransformer.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.DenseTransformer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+
+<span class="c1"># Sparse transformer</span>
+<div class="viewcode-block" id="SparseTransformer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.SparseTransformer">[docs]</a><span class="k">class</span> <span class="nc">SparseTransformer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+<div class="viewcode-block" id="SparseTransformer.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.SparseTransformer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">X</span><span class="o">.</span><span class="n">tosparse</span><span class="p">()</span></div>
+<div class="viewcode-block" id="SparseTransformer.fit_transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.SparseTransformer.fit_transform">[docs]</a>    <span class="k">def</span> <span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></div>
+<div class="viewcode-block" id="SparseTransformer.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.SparseTransformer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+
+<span class="c1"># Text to word index transformer</span>
+<div class="viewcode-block" id="WordSequencer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.WordSequencer">[docs]</a><span class="k">class</span> <span class="nc">WordSequencer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_seq_length</span><span class="p">,</span> <span class="n">embeddings</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">embeddings</span> <span class="o">==</span> <span class="kc">None</span>
+        <span class="kn">from</span> <span class="nn">keras.preprocessing.text</span> <span class="kn">import</span> <span class="n">Tokenizer</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_seq_length</span> <span class="o">=</span> <span class="n">max_seq_length</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">Tokenizer</span><span class="p">(</span><span class="n">num_words</span> <span class="o">=</span> <span class="n">max_seq_length</span><span class="p">)</span>
+        
+<div class="viewcode-block" id="WordSequencer.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.WordSequencer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">keras.preprocessing.sequence</span> <span class="kn">import</span> <span class="n">pad_sequences</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">texts_to_sequences</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">pad_sequences</span><span class="p">(</span><span class="n">sequences</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_seq_length</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">sequences</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sequences</span></div>
+<div class="viewcode-block" id="WordSequencer.fit_transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.WordSequencer.fit_transform">[docs]</a>    <span class="k">def</span> <span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></div>
+<div class="viewcode-block" id="WordSequencer.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.WordSequencer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">fit_on_texts</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+
+<span class="c1"># Text to word index transformer</span>
+<div class="viewcode-block" id="Word2Vec_WordSequencer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.Word2Vec_WordSequencer">[docs]</a><span class="k">class</span> <span class="nc">Word2Vec_WordSequencer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_seq_length</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">embeddings</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">emb_size</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_vectors</span> <span class="o">=</span> <span class="n">KeyedVectors</span><span class="o">.</span><span class="n">load_word2vec_format</span><span class="p">(</span><span class="n">embeddings</span><span class="p">,</span>
+<span class="c1">#                                                                   binary = True,</span>
+<span class="c1">#                                                                   unicode_errors=&#39;ignore&#39;,</span>
+                                                                   <span class="n">limit</span> <span class="o">=</span> <span class="n">emb_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_seq_length</span> <span class="o">=</span> <span class="n">max_seq_length</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embeddings</span>     <span class="o">=</span> <span class="n">embeddings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emb_size</span>       <span class="o">=</span> <span class="n">emb_size</span>
+        <span class="c1">#        from keras.preprocessing.text import Tokenizer</span>
+        
+        <span class="c1">#        self.max_seq_length = max_seq_length</span>
+        <span class="c1">#        self.tokenizer = Tokenizer(num_words = max_seq_length)</span>
+            
+<div class="viewcode-block" id="Word2Vec_WordSequencer.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.Word2Vec_WordSequencer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">keras.preprocessing.sequence</span> <span class="kn">import</span> <span class="n">pad_sequences</span>
+        <span class="n">ret_val</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1">#        STATUS[5](&#39;WordSequencer received input of size %i&#39; % len(X))</span>
+        <span class="n">oov_n</span>   <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">total_n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">X</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">nltk</span><span class="o">.</span><span class="n">word_tokenize</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_seq_length</span><span class="p">:</span> <span class="k">break</span>
+                <span class="k">if</span> <span class="n">token</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_vectors</span><span class="o">.</span><span class="n">vocab</span><span class="p">:</span>
+                    <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_vectors</span><span class="o">.</span><span class="n">vocab</span><span class="p">[</span><span class="n">token</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
+                    <span class="n">vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_vectors</span><span class="o">.</span><span class="n">get_vector</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+<span class="c1">#                    STATUS[10](&quot;Transforming token &#39;%s&#39; -&gt; &#39;%i&#39; -&gt; (%s, ...)&quot; % (token,</span>
+<span class="c1">#                                                                                 index,</span>
+<span class="c1">#                                                         &#39;, &#39;.join([str(v) for v in vec[:3]])))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="c1"># Use the least frequent word for OOV terms</span>
+                    <span class="n">oov_n</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s2">&quot;OOV term: &#39;</span><span class="si">%s</span><span class="s2">&#39; using token &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">token</span><span class="p">,</span>
+                                                        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_vectors</span><span class="o">.</span><span class="n">index2word</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="n">total_n</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="n">ret_val</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;OOV vectors: </span><span class="si">%i</span><span class="s1"> / </span><span class="si">%i</span><span class="s1"> (</span><span class="si">%.1f%%</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">oov_n</span><span class="p">,</span> <span class="n">total_n</span><span class="p">,</span> <span class="mf">100.0</span><span class="o">*</span><span class="p">(</span><span class="n">oov_n</span><span class="o">/</span><span class="n">total_n</span><span class="p">)))</span>
+<span class="c1">#        STATUS[5](&#39;Vectors of len (%i, %i)&#39; % (min(map(len, ret_val)), max(map(len, ret_val))))</span>
+        <span class="n">ret_val</span> <span class="o">=</span> <span class="n">pad_sequences</span><span class="p">(</span><span class="n">ret_val</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_seq_length</span><span class="p">)</span>
+<span class="c1">#        STATUS[5](&#39;Vectors of len (%i, %i)&#39; % (min(map(len, ret_val)), max(map(len, ret_val))))</span>
+        <span class="n">ret_val</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ret_val</span><span class="p">)</span>
+<span class="c1">#        STATUS[5](&#39;WordSequencer output size %s&#39; % (str(ret_val.shape)))</span>
+        <span class="k">return</span> <span class="n">ret_val</span>
+<span class="c1">#        return numpy.transpose(ret_val)</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        sequence_input = keras_layers.Input(shape = (seq_length,), dtype = &#39;int32&#39;)</span>
+<span class="sd">        embedding_layer = self.embedding_vectors.get_keras_embedding(train_embeddings = False)</span>
+<span class="sd">        x = embedding_layer(sequence_input)</span>
+<span class="sd">        self._model = keras_models.Model(sequence_input, x)</span>
+<span class="sd">        self._model.compile(loss = &#39;hinge&#39;,</span>
+<span class="sd">                            optimizer = &#39;rmsprop&#39;)</span>
+<span class="sd">        &#39;&#39;&#39;</span></div>
+<div class="viewcode-block" id="Word2Vec_WordSequencer.fit_transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.Word2Vec_WordSequencer.fit_transform">[docs]</a>    <span class="k">def</span> <span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></div>
+<div class="viewcode-block" id="Word2Vec_WordSequencer.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.Word2Vec_WordSequencer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+    
+<span class="c1">#def stem_tokens(tokens, stemmer):</span>
+<span class="c1">#    stemmed = []</span>
+<span class="c1">#    for item in tokens:</span>
+<span class="c1">#        stemmed.append(stemmer.stem(item))</span>
+<span class="c1">#    return stemmed</span>
+
+<div class="viewcode-block" id="Tokenizer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.Tokenizer">[docs]</a><span class="k">class</span> <span class="nc">Tokenizer</span><span class="p">:</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sent_tokenize</span><span class="p">,</span> <span class="n">word_tokenize</span><span class="p">,</span> <span class="n">stem</span><span class="p">,</span> <span class="n">stop_words</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sent_tokenize</span> <span class="o">=</span> <span class="n">sent_tokenize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">word_tokenize</span> <span class="o">=</span> <span class="n">word_tokenize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stem</span>          <span class="o">=</span> <span class="n">stem</span>
+        <span class="c1"># Note: stop_words should be STEMMED forms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop_words</span>    <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">stop_words</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="p">[</span><span class="n">word</span> <span class="k">for</span> <span class="n">sent</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sent_tokenize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">word_tokenize</span><span class="p">(</span><span class="n">sent</span><span class="p">)]</span>
+        <span class="c1"># In order for sklearn not to issue stupid consistency warnings</span>
+        <span class="c1"># (stemmed) stop words must be invariant under tokenization,</span>
+        <span class="c1"># which generally implies that the tokenizer must know the stop</span>
+        <span class="c1"># words and treat them differently, which means the consistenty</span>
+        <span class="c1"># cannot tell if the stop words are stemmed or not to begin with</span>
+<span class="c1">#        STATUS[10](&quot;Pre-tokenization: &#39;%s&#39;&quot; % text)</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stem</span><span class="p">(</span><span class="n">token</span><span class="p">)</span> <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokens</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stem</span><span class="p">(</span><span class="n">token</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_words</span><span class="p">]</span>
+<span class="c1">#        STATUS[10](&quot;Post-tokenization: &#39;%s&#39;&quot; % &quot; &quot;.join(tokens))</span>
+        <span class="k">return</span> <span class="n">tokens</span></div>
+
+<div class="viewcode-block" id="tokenize_DEPR"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.tokenize_DEPR">[docs]</a><span class="k">def</span> <span class="nf">tokenize_DEPR</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+<span class="c1">#    text = &quot;&quot;.join([ch for ch in text if ch not in string.punctuation])</span>
+<span class="c1">#    tokens = nltk.word_tokenize(sent)</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="p">[</span><span class="n">word</span> <span class="k">for</span> <span class="n">sent</span> <span class="ow">in</span> <span class="n">nltk</span><span class="o">.</span><span class="n">sent_tokenize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">nltk</span><span class="o">.</span><span class="n">word_tokenize</span><span class="p">(</span><span class="n">sent</span><span class="p">)]</span>
+<span class="c1">#    stems = stem_tokens(tokens, stemmer)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">default_stemmer</span><span class="o">.</span><span class="n">stem</span><span class="p">(</span><span class="n">token</span><span class="p">)</span> <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="csv_tokenizer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.csv_tokenizer">[docs]</a><span class="k">def</span> <span class="nf">csv_tokenizer</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;; &#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="csv_ngram_analyzer"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.csv_ngram_analyzer">[docs]</a><span class="k">def</span> <span class="nf">csv_ngram_analyzer</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;; &#39;</span><span class="p">):</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\w{2,}&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="c1"># Come up with a better way to do this</span>
+        <span class="k">for</span> <span class="n">unigram</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">unigram</span>
+        <span class="k">for</span> <span class="n">bigram</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="k">yield</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">bigram</span>
+        <span class="k">for</span> <span class="n">trigram</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">2</span><span class="p">:]):</span>
+            <span class="k">yield</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">trigram</span></div>
+
+
+
+<span class="c1"># Selection transformer</span>
+<span class="c1"># Takes dict-like objects and extracts the value for the specified</span>
+<span class="c1"># key</span>
+<span class="c1"># TODO make this work for list-like objects too (using indices)</span>
+<span class="c1"># TODO change the constructor to (optionally) take lists of keys</span>
+<div class="viewcode-block" id="ItemSelector"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.ItemSelector">[docs]</a><span class="k">class</span> <span class="nc">ItemSelector</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keys</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; OR &#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="ItemSelector.fit"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.ItemSelector.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span></div>
+<div class="viewcode-block" id="ItemSelector.transform"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.ItemSelector.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="c1"># Given data of length n, construct keys x n size table</span>
+        <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">]</span>
+        <span class="c1"># Merge column by column, resulting in a 1 x n size vector</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">block</span><span class="p">)</span> <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">blocks</span><span class="p">)]</span></div></div>
+
+<div class="viewcode-block" id="QueryFeatureBuilder"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.QueryFeatureBuilder">[docs]</a><span class="k">class</span> <span class="nc">QueryFeatureBuilder</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">foo</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="FeatureBuilder"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.FeatureBuilder">[docs]</a><span class="k">class</span> <span class="nc">FeatureBuilder</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">vocabulary</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sparse</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vocabulary</span> <span class="o">=</span> <span class="n">vocabulary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span>       <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span>     <span class="o">=</span> <span class="n">sparse</span>
+    
+<div class="viewcode-block" id="FeatureBuilder.word_sequence"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.FeatureBuilder.word_sequence">[docs]</a>    <span class="k">def</span> <span class="nf">word_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">default_args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;embeddings&#39;</span><span class="p">:</span> <span class="kc">None</span>
+            <span class="p">}</span>
+        <span class="n">default_args</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">default_args</span>
+        <span class="n">arg_desc</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">iteritems</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="k">if</span> <span class="n">val</span><span class="p">])</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">ItemSelector</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="n">field</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;embeddings&#39;</span><span class="p">]:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;tokenizer&#39;</span><span class="p">,</span> <span class="n">Word2Vec_WordSequencer</span><span class="p">(</span><span class="o">**</span><span class="n">args</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;tokenizer&#39;</span><span class="p">,</span> <span class="n">WordSequencer</span><span class="p">(</span><span class="o">**</span><span class="n">args</span><span class="p">)))</span>
+
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">_get_feature_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_steps</span><span class="p">[</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_feature_names</span><span class="p">()</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">get_feature_names</span> <span class="o">=</span> <span class="n">_get_feature_names</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">arg_desc</span><span class="p">),</span> <span class="n">pipeline</span><span class="p">)</span></div>
+        
+    <span class="c1"># Consider renaming to (word) ngram</span>
+<div class="viewcode-block" id="FeatureBuilder.text"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.FeatureBuilder.text">[docs]</a>    <span class="k">def</span> <span class="nf">text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">default_args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;ngram_max&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s1">&#39;stop_words&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;binary&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s1">&#39;stem&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s1">&#39;lowercase&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s1">&#39;tfidf&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s1">&#39;theta&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;normalize&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;analyzer&#39;</span><span class="p">:</span> <span class="s1">&#39;word&#39;</span>
+            <span class="p">}</span>
+
+        <span class="n">default_args</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">default_args</span>
+        <span class="n">arg_desc</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">iteritems</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="k">if</span> <span class="n">val</span><span class="p">])</span>
+
+        <span class="n">noop</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+        <span class="n">stem</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;stem&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">default_stemmer</span><span class="o">.</span><span class="n">stem</span> <span class="ow">or</span> <span class="n">noop</span>
+        <span class="n">tokenizer</span> <span class="o">=</span> <span class="n">Tokenizer</span><span class="p">(</span><span class="n">nltk</span><span class="o">.</span><span class="n">sent_tokenize</span><span class="p">,</span> <span class="n">nltk</span><span class="o">.</span><span class="n">word_tokenize</span><span class="p">,</span> <span class="n">stem</span><span class="p">,</span> <span class="p">[])</span>
+        
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;stop_words&#39;</span><span class="p">]:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">processed_stop_words</span> <span class="o">=</span> <span class="n">stopwords</span><span class="o">.</span><span class="n">words</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;stop_words&#39;</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span> <span class="c1"># Yes, NLTK seriously throws OSError for unknown languages...</span>
+                <span class="n">processed_stop_words</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;stop_words&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">processed_stop_words</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;stem&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">processed_stop_words</span><span class="p">:</span>
+            <span class="n">processed_stop_words</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">processed_stop_words</span><span class="p">))</span>
+<span class="c1">#            from pprint import pprint</span>
+<span class="c1">#            pprint(sorted(processed_stop_words))</span>
+            
+        <span class="n">tokenizer</span> <span class="o">=</span> <span class="n">Tokenizer</span><span class="p">(</span><span class="n">nltk</span><span class="o">.</span><span class="n">sent_tokenize</span><span class="p">,</span> <span class="n">nltk</span><span class="o">.</span><span class="n">word_tokenize</span><span class="p">,</span> <span class="n">stem</span><span class="p">,</span> <span class="n">processed_stop_words</span><span class="p">)</span>
+            
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">ItemSelector</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="n">field</span><span class="p">)))</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">,</span> <span class="n">CountVectorizer</span><span class="p">(</span><span class="n">ngram_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;ngram_max&#39;</span><span class="p">]),</span>
+                                                       <span class="n">tokenizer</span>   <span class="o">=</span> <span class="n">tokenizer</span><span class="p">,</span>
+<span class="c1">#                                                       stop_words  = processed_stop_words,</span>
+                                                       <span class="n">vocabulary</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vocabulary</span><span class="p">,</span>
+                                                       <span class="n">analyzer</span>    <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;analyzer&#39;</span><span class="p">]</span>
+                                                       <span class="p">)))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;tfidf&#39;</span><span class="p">]:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;tf-idf&#39;</span><span class="p">,</span> <span class="n">TfidfTransformer</span><span class="p">()))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;f_selector&#39;</span><span class="p">,</span> <span class="n">feature_selection</span><span class="o">.</span><span class="n">VarianceThreshold</span><span class="p">(</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">])))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;densify&#39;</span><span class="p">,</span> <span class="n">DenseTransformer</span><span class="p">()))</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;typecast&lt;float&gt;&#39;</span><span class="p">,</span> <span class="n">TypecastTransformer</span><span class="p">(</span><span class="s1">&#39;float_&#39;</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;normalize&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+                <span class="c1"># RobustScaler can apparently only be fitted on dense matrices at present</span>
+                <span class="c1"># see: https://github.com/scikit-learn/scikit-learn/issues/8796</span>
+                <span class="c1"># and: https://github.com/scikit-learn/scikit-learn/pull/4125#r30829145</span>
+                
+<span class="c1">#            pipeline.append((&#39;scaling&#39;, preprocessing.RobustScaler(with_centering = False)))</span>
+                <span class="c1"># TODO: switch to RobustScaler if/when the issue gets resolved</span>
+<span class="c1">#            pipeline.append((&#39;scaling&#39;, preprocessing.StandardScaler(with_mean = False)))</span>
+                <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">Normalizer</span><span class="p">()))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">RobustScaler</span><span class="p">()))</span>
+        
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">_get_feature_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_steps</span><span class="p">[</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_feature_names</span><span class="p">()</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">get_feature_names</span> <span class="o">=</span> <span class="n">_get_feature_names</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">arg_desc</span><span class="p">),</span> <span class="n">pipeline</span><span class="p">)</span></div>
+    
+<div class="viewcode-block" id="FeatureBuilder.csv"><a class="viewcode-back" href="../../../csr.ML.html#csr.ML.pipeline.FeatureBuilder.csv">[docs]</a>    <span class="k">def</span> <span class="nf">csv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">default_args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;theta&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;normalize&#39;</span><span class="p">:</span> <span class="kc">True</span>
+            <span class="p">}</span>
+        <span class="n">default_args</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">default_args</span>
+        <span class="n">arg_desc</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">iteritems</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="k">if</span> <span class="n">val</span><span class="p">])</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">ItemSelector</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="n">field</span><span class="p">)))</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">,</span> <span class="n">CountVectorizer</span><span class="p">(</span><span class="n">analyzer</span> <span class="o">=</span> <span class="n">csv_ngram_analyzer</span><span class="p">,</span>
+                                                       <span class="n">binary</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;f_selector&#39;</span><span class="p">,</span> <span class="n">feature_selection</span><span class="o">.</span><span class="n">VarianceThreshold</span><span class="p">(</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">])))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;densify&#39;</span><span class="p">,</span> <span class="n">DenseTransformer</span><span class="p">()))</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;typecast&lt;float&gt;&#39;</span><span class="p">,</span> <span class="n">TypecastTransformer</span><span class="p">(</span><span class="s1">&#39;float_&#39;</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;normalize&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+                <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">Normalizer</span><span class="p">()))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pipeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">RobustScaler</span><span class="p">()))</span>
+        
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">_get_feature_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_steps</span><span class="p">[</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_feature_names</span><span class="p">()</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">get_feature_names</span> <span class="o">=</span> <span class="n">_get_feature_names</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">arg_desc</span><span class="p">),</span> <span class="n">pipeline</span><span class="p">)</span></div></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

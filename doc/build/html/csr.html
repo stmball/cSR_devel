@@ -1,0 +1,683 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>csr package &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="csr-package">
+<h1>csr package<a class="headerlink" href="#csr-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="csr.ML.html">csr.ML package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="csr.ML.extra.html">csr.ML.extra package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="csr.ML.extra.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="csr.ML.extra.html#module-csr.ML.extra.Waterloo">csr.ML.extra.Waterloo module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="csr.ML.extra.html#module-csr.ML.extra">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.Evaluation">csr.ML.Evaluation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.LearnToRank">csr.ML.LearnToRank module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.Train">csr.ML.Train module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.meta">csr.ML.meta module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.misc">csr.ML.misc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.models">csr.ML.models module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML.pipeline">csr.ML.pipeline module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csr.ML.html#module-csr.ML">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-csr.Data">
+<span id="csr-data-module"></span><h2>csr.Data module<a class="headerlink" href="#module-csr.Data" title="Permalink to this headline">¶</a></h2>
+<p>Module for handing, manipulating and inspecting data.</p>
+<dl class="class">
+<dt id="csr.Data.DataStream">
+<em class="property">class </em><code class="sig-prename descclassname">csr.Data.</code><code class="sig-name descname">DataStream</code><span class="sig-paren">(</span><em class="sig-param">*header</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Simple decorator class to facilitate data handling and passing data from
+stage to stage during data processing, without having to care about
+how the data is handled.
+The internal data structure is intended to be marshallable into
+human-readable standard output.</p>
+<dl class="method">
+<dt id="csr.Data.DataStream.add_column">
+<code class="sig-name descname">add_column</code><span class="sig-paren">(</span><em class="sig-param">col</em>, <em class="sig-param">default_value=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.add_column"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.add_column" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds the specified column to the datastream, initialized to <cite>default_value</cite>. Resets the column values to <cite>default_value</cite> if the column already exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>col</strong> (<em>str</em>) – The column name to add</p></li>
+<li><p><strong>default_value</strong> – The initial value for the column</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.append">
+<code class="sig-name descname">append</code><span class="sig-paren">(</span><em class="sig-param">row</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add the given row to the data stream</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>row</strong> (<em>list</em>) – The row items to append</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>self</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If <cite>row</cite> is not the same length as the datastream header</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.delete_if">
+<code class="sig-name descname">delete_if</code><span class="sig-paren">(</span><em class="sig-param">func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.delete_if"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.delete_if" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes all rows in the datastream for which <cite>func</cite> returns truthy values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>func</strong> (<em>callable</em>) – A functor that takes data rows, and returns boolean values</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.has_column">
+<code class="sig-name descname">has_column</code><span class="sig-paren">(</span><em class="sig-param">col</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.has_column"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.has_column" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the given column name exists in the datastream header</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>col</strong> (<em>str</em>) – The column name to check for</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if column exists, else False</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.marshall">
+<code class="sig-name descname">marshall</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.marshall"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.marshall" title="Permalink to this definition">¶</a></dt>
+<dd><p>Marshall the data to string format. The resulting data can be unmarshalled using <cite>DataStream#parse</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A marshalled representation of the data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.merge">
+<code class="sig-name descname">merge</code><span class="sig-paren">(</span><em class="sig-param">other</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add all data from <cite>other</cite> to this datastream. Requires <cite>other</cite> to include all columns in this datastream. Extra columns in <cite>other</cite> are ignored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>other</strong> (<a class="reference internal" href="#csr.Data.DataStream" title="csr.Data.DataStream"><em>DataStream</em></a>) – datastream of data to add</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>self</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError</strong> – if <cite>other</cite> is not a DataStream object</p></li>
+<li><p><strong>ValueError</strong> – if the headers of the two datastreams differ</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.parse">
+<em class="property">classmethod </em><code class="sig-name descname">parse</code><span class="sig-paren">(</span><em class="sig-param">raw_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse input data in marshalled string format, and return a DataStream object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>raw_data</strong> (<em>str</em>) – Data to unmarshall.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A DataStream object corresponding to the data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.select">
+<code class="sig-name descname">select</code><span class="sig-paren">(</span><em class="sig-param">row_conditions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.select"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.select" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the rows for which all <cite>row_conditions</cite> evaluate true.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>select_indices, parse_condition, parse_conditions</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>row_conditions</strong> (<em>list of functors</em>) – Conditions to apply</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>List of data rows where the conditions are true</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.select_indices">
+<code class="sig-name descname">select_indices</code><span class="sig-paren">(</span><em class="sig-param">row_conditions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.select_indices"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.select_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the row indices for which all <cite>row_conditions</cite> evaluate true.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>select_indices, parse_condition, parse_conditions</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>row_conditions</strong> (<em>list of functors</em>) – Conditions to apply</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>List indices where the conditions are true</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.Data.DataStream.sort">
+<code class="sig-name descname">sort</code><span class="sig-paren">(</span><em class="sig-param">key</em>, <em class="sig-param">reverse=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#DataStream.sort"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.DataStream.sort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sort the datastream in place. Note that sorted(DataStream) returns a list of _DataRows
+and not a DataStream instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – see definition of sorted</p></li>
+<li><p><strong>reverse</strong> (<em>boolean</em>) – True to sort descending</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Data.parse_condition">
+<code class="sig-prename descclassname">csr.Data.</code><code class="sig-name descname">parse_condition</code><span class="sig-paren">(</span><em class="sig-param">row_condition</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#parse_condition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.parse_condition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parses the given condition string into a condition that can be used with <cite>DataStream#select</cite> and <cite>DataStream#select_indices</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>row_condition</strong> (<em>str</em>) – A string on the form COL=VALUE or COL!=VALUE</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If <cite>row_condition</cite> is not in the correct format</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Data.parse_conditions">
+<code class="sig-prename descclassname">csr.Data.</code><code class="sig-name descname">parse_conditions</code><span class="sig-paren">(</span><em class="sig-param">row_conditions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Data.html#parse_conditions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Data.parse_conditions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to avoid frequent and long list comps.
+Applies parse_condition to each element in <cite>row_conditions</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>row_conditions</strong> (<em>list of str</em>) – List of row conditions</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>parse_condition</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Deprecated and may be removed in future versions</p>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr.Export">
+<span id="csr-export-module"></span><h2>csr.Export module<a class="headerlink" href="#module-csr.Export" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="csr.Export.export_BERT">
+<code class="sig-prename descclassname">csr.Export.</code><code class="sig-name descname">export_BERT</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">out</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Export.html#export_BERT"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Export.export_BERT" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write data in BERT tsv format</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Export.export_csv">
+<code class="sig-prename descclassname">csr.Export.</code><code class="sig-name descname">export_csv</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">out</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Export.html#export_csv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Export.export_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a comma separated file into a DataStream.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr.Import">
+<span id="csr-import-module"></span><h2>csr.Import module<a class="headerlink" href="#module-csr.Import" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="csr.Import.import_RIS">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_RIS</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_RIS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_RIS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts RIS into a DataStream.
+Takes input as an iterator in order to allow any type of source. Therefore source loading is expected to be handles by the caller.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Import.import_bibreview_xml">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_bibreview_xml</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_bibreview_xml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_bibreview_xml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts BibReview XML into a DataStream.
+Takes xml input as a string in order to allow any type of source. Therefore source loading is expected to be handles by the caller.
+Since BibReview does not support structured abstracts, keywords, or publication_types, these fields will be empty. Users are advised to reretrieve the results from PubMed if these are required.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Import.import_csv">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_csv</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_csv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a comma separated file into a DataStream.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Import.import_embase_xml">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_embase_xml</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_embase_xml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_embase_xml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts Embase XML into a DataStream.
+Takes xml input as a string in order to allow any type of source. Therefore source loading is expected to be handles by the caller.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Import.import_endnote_xml">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_endnote_xml</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_endnote_xml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_endnote_xml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts EndNote XML into DataStream.
+Takes xml input as a string in order to allow any type of source. Therefore source loading is expected to be handles by the caller.
+Since EndNote does not support structured abstracts, keywords, or publication_types, these fields will be empty.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Import.import_pmids">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_pmids</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_pmids"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_pmids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a list of pmids into a DataStream.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Import.import_tsv">
+<code class="sig-prename descclassname">csr.Import.</code><code class="sig-name descname">import_tsv</code><span class="sig-paren">(</span><em class="sig-param">source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Import.html#import_tsv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Import.import_tsv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a tab separated file into a DataStream.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr.Log">
+<span id="csr-log-module"></span><h2>csr.Log module<a class="headerlink" href="#module-csr.Log" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="csr.Log.StatusBar">
+<em class="property">class </em><code class="sig-prename descclassname">csr.Log.</code><code class="sig-name descname">StatusBar</code><span class="sig-paren">(</span><em class="sig-param">stream</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Log.html#StatusBar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Log.StatusBar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="attribute">
+<dt id="csr.Log.StatusBar.buffers">
+<code class="sig-name descname">buffers</code><em class="property"> = {}</em><a class="headerlink" href="#csr.Log.StatusBar.buffers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="csr.Log.StatusBar.buffers_lock">
+<code class="sig-name descname">buffers_lock</code><em class="property"> = &lt;unlocked _thread.lock object&gt;</em><a class="headerlink" href="#csr.Log.StatusBar.buffers_lock" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.Log.StatusBar.shutdown">
+<code class="sig-name descname">shutdown</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Log.html#StatusBar.shutdown"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Log.StatusBar.shutdown" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.Log.StatusBar.status">
+<code class="sig-name descname">status</code><span class="sig-paren">(</span><em class="sig-param">s</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Log.html#StatusBar.status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Log.StatusBar.status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the given string as a status line. Note that this does not
+play well with most streams except stderr, and should be used with
+appropriate caution.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="csr.Log.StatusBar.threshold">
+<code class="sig-name descname">threshold</code><em class="property"> = 0</em><a class="headerlink" href="#csr.Log.StatusBar.threshold" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Log.calc_terminal_width">
+<code class="sig-prename descclassname">csr.Log.</code><code class="sig-name descname">calc_terminal_width</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Log.html#calc_terminal_width"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Log.calc_terminal_width" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="csr.Log.start_statusbar">
+<code class="sig-prename descclassname">csr.Log.</code><code class="sig-name descname">start_statusbar</code><span class="sig-paren">(</span><em class="sig-param">stream</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Log.html#start_statusbar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Log.start_statusbar" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="csr.Log.stop_statusbar">
+<code class="sig-prename descclassname">csr.Log.</code><code class="sig-name descname">stop_statusbar</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Log.html#stop_statusbar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Log.stop_statusbar" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-csr.Medline">
+<span id="csr-medline-module"></span><h2>csr.Medline module<a class="headerlink" href="#module-csr.Medline" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="csr.Medline.add_pmids_from_dois">
+<code class="sig-prename descclassname">csr.Medline.</code><code class="sig-name descname">add_pmids_from_dois</code><span class="sig-paren">(</span><em class="sig-param">email</em>, <em class="sig-param">records</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Medline.html#add_pmids_from_dois"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Medline.add_pmids_from_dois" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="csr.Medline.convert_document_id">
+<code class="sig-prename descclassname">csr.Medline.</code><code class="sig-name descname">convert_document_id</code><span class="sig-paren">(</span><em class="sig-param">doc_id</em>, <em class="sig-param">email</em>, <em class="sig-param">id_type='PMC'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Medline.html#convert_document_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Medline.convert_document_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert document id to dictionary of other id
+see: <a class="reference external" href="http://www.ncbi.nlm.nih.gov/pmc/tools/id-converter-api/">http://www.ncbi.nlm.nih.gov/pmc/tools/id-converter-api/</a> for more info
+Based on:
+<a class="reference external" href="https://github.com/titipata/pubmed_parser/blob/master/pubmed_parser/pubmed_web_parser.py">https://github.com/titipata/pubmed_parser/blob/master/pubmed_parser/pubmed_web_parser.py</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Medline.retrieve_by_pmid">
+<code class="sig-prename descclassname">csr.Medline.</code><code class="sig-name descname">retrieve_by_pmid</code><span class="sig-paren">(</span><em class="sig-param">email</em>, <em class="sig-param">input_records</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Medline.html#retrieve_by_pmid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Medline.retrieve_by_pmid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves abstracts and metadata from PubMed. Input should at least have a PMID field. All field values are retained in the output, but the order of the fields is not guaranteed to be preserved. This function is _not_ reentrant unless the email given is constant from call to call.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Medline.retrieve_by_query">
+<code class="sig-prename descclassname">csr.Medline.</code><code class="sig-name descname">retrieve_by_query</code><span class="sig-paren">(</span><em class="sig-param">email</em>, <em class="sig-param">queries</em>, <em class="sig-param">offset=0</em>, <em class="sig-param">n=100</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Medline.html#retrieve_by_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Medline.retrieve_by_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function is _not_ reentrant unless the email given is constant
+from call to call.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Medline.retrieve_fulltext">
+<code class="sig-prename descclassname">csr.Medline.</code><code class="sig-name descname">retrieve_fulltext</code><span class="sig-paren">(</span><em class="sig-param">email</em>, <em class="sig-param">input_records</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Medline.html#retrieve_fulltext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Medline.retrieve_fulltext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves fulltext articles from PubMed Central. Input should at least have a PMID field. All field values are retained in the output, but the order of the fields is not guaranteed to be preserved. This function is _not_ reentrant unless the email given is constant from call to call.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr.Preprocess">
+<span id="csr-preprocess-module"></span><h2>csr.Preprocess module<a class="headerlink" href="#module-csr.Preprocess" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="csr.Preprocess.StructuredAbstractPreprocessor">
+<em class="property">class </em><code class="sig-prename descclassname">csr.Preprocess.</code><code class="sig-name descname">StructuredAbstractPreprocessor</code><a class="reference internal" href="_modules/csr/Preprocess.html#StructuredAbstractPreprocessor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Preprocess.StructuredAbstractPreprocessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="csr.Preprocess.StructuredAbstractPreprocessor.reconstruct">
+<code class="sig-name descname">reconstruct</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Preprocess.html#StructuredAbstractPreprocessor.reconstruct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Preprocess.StructuredAbstractPreprocessor.reconstruct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.Preprocess.StructuredAbstractPreprocessor.train">
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Preprocess.html#StructuredAbstractPreprocessor.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Preprocess.StructuredAbstractPreprocessor.train" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="csr.Preprocess.add_placeholder_for_missing_data">
+<code class="sig-prename descclassname">csr.Preprocess.</code><code class="sig-name descname">add_placeholder_for_missing_data</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Preprocess.html#add_placeholder_for_missing_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Preprocess.add_placeholder_for_missing_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="csr.Preprocess.clean_text">
+<code class="sig-prename descclassname">csr.Preprocess.</code><code class="sig-name descname">clean_text</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Preprocess.html#clean_text"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Preprocess.clean_text" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="csr.Preprocess.strip_numerals">
+<code class="sig-prename descclassname">csr.Preprocess.</code><code class="sig-name descname">strip_numerals</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Preprocess.html#strip_numerals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Preprocess.strip_numerals" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-csr.Singleton">
+<span id="csr-singleton-module"></span><h2>csr.Singleton module<a class="headerlink" href="#module-csr.Singleton" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="csr.Singleton.Singleton">
+<em class="property">class </em><code class="sig-prename descclassname">csr.Singleton.</code><code class="sig-name descname">Singleton</code><span class="sig-paren">(</span><em class="sig-param">decorated</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Singleton.html#Singleton"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Singleton.Singleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A non-thread-safe helper class to ease implementing singletons.
+This should be used as a decorator – not a metaclass – to the
+class that should be a singleton.</p>
+<p>The decorated class can define one <cite>__init__</cite> function that
+takes only the <cite>self</cite> argument. Also, the decorated class cannot be
+inherited from. Other than that, there are no restrictions that apply
+to the decorated class.</p>
+<p>To get the singleton instance, use the <cite>Instance</cite> method. Trying
+to use <cite>__call__</cite> will result in a <cite>TypeError</cite>.</p>
+<dl class="method">
+<dt id="csr.Singleton.Singleton.Instance">
+<code class="sig-name descname">Instance</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Singleton.html#Singleton.Instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Singleton.Singleton.Instance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the singleton instance. Upon its first call, it creates a
+new instance of the decorated class and calls its <cite>__init__</cite> method.
+On all subsequent calls, the already created instance is returned.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr.Train">
+<span id="csr-train-module"></span><h2>csr.Train module<a class="headerlink" href="#module-csr.Train" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-csr.Vocabulary">
+<span id="csr-vocabulary-module"></span><h2>csr.Vocabulary module<a class="headerlink" href="#module-csr.Vocabulary" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="csr.Vocabulary.Vocabulary">
+<em class="property">class </em><code class="sig-prename descclassname">csr.Vocabulary.</code><code class="sig-name descname">Vocabulary</code><span class="sig-paren">(</span><em class="sig-param">f_selectors</em>, <em class="sig-param">ngram_range=(1</em>, <em class="sig-param">5)</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Vocabulary.html#Vocabulary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Vocabulary.Vocabulary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="csr.Vocabulary.Vocabulary.fit">
+<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Vocabulary.html#Vocabulary.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Vocabulary.Vocabulary.fit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.Vocabulary.Vocabulary.fit_or_load">
+<code class="sig-name descname">fit_or_load</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">force_load=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Vocabulary.html#Vocabulary.fit_or_load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Vocabulary.Vocabulary.fit_or_load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.Vocabulary.Vocabulary.get_terms">
+<code class="sig-name descname">get_terms</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Vocabulary.html#Vocabulary.get_terms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Vocabulary.Vocabulary.get_terms" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.Vocabulary.Vocabulary.load">
+<em class="property">static </em><code class="sig-name descname">load</code><span class="sig-paren">(</span><em class="sig-param">filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/Vocabulary.html#Vocabulary.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.Vocabulary.Vocabulary.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr.misc">
+<span id="csr-misc-module"></span><h2>csr.misc module<a class="headerlink" href="#module-csr.misc" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="csr.misc.CACHE">
+<code class="sig-prename descclassname">csr.misc.</code><code class="sig-name descname">CACHE</code><span class="sig-paren">(</span><em class="sig-param">func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#CACHE"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.CACHE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="csr.misc.DenseTransformer">
+<em class="property">class </em><code class="sig-prename descclassname">csr.misc.</code><code class="sig-name descname">DenseTransformer</code><a class="reference internal" href="_modules/csr/misc.html#DenseTransformer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.DenseTransformer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">sklearn.base.BaseEstimator</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sklearn.base.TransformerMixin</span></code></p>
+<dl class="method">
+<dt id="csr.misc.DenseTransformer.fit">
+<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param">X</em>, <em class="sig-param">y</em>, <em class="sig-param">**fit_params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#DenseTransformer.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.DenseTransformer.fit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="csr.misc.DenseTransformer.fit_transform">
+<code class="sig-name descname">fit_transform</code><span class="sig-paren">(</span><em class="sig-param">X</em>, <em class="sig-param">y=None</em>, <em class="sig-param">**fit_params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#DenseTransformer.fit_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.DenseTransformer.fit_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit to data, then transform it.</p>
+<p>Fits transformer to X and y with optional parameters fit_params
+and returns a transformed version of X.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>numpy array of shape</em><em> [</em><em>n_samples</em><em>, </em><em>n_features</em><em>]</em>) – Training set.</p></li>
+<li><p><strong>y</strong> (<em>numpy array of shape</em><em> [</em><em>n_samples</em><em>]</em>) – Target values.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>X_new</strong> – Transformed array.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>numpy array of shape [n_samples, n_features_new]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="csr.misc.DenseTransformer.transform">
+<code class="sig-name descname">transform</code><span class="sig-paren">(</span><em class="sig-param">X</em>, <em class="sig-param">y=None</em>, <em class="sig-param">**fit_params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#DenseTransformer.transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.DenseTransformer.transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="csr.misc.ObjectBuilder">
+<em class="property">class </em><code class="sig-prename descclassname">csr.misc.</code><code class="sig-name descname">ObjectBuilder</code><span class="sig-paren">(</span><em class="sig-param">type_defs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#ObjectBuilder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.ObjectBuilder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Takes a structure of dicts, list, and objects and constructs
+an object based on the type definitions given at construction.
+By convention (or by definition), capitalized dict entries are
+treated as classes, and non-capitalized dict entries are treated
+normally.
+Thus, {Foo: [1, 2, 3]} would construct a Foo object with 1, 2, 3
+as arguments, provided a Foo class is defined in the ‘type_def’
+argument to the constructor. Named arguments can be passed only
+in lower case, e.g. {SVC: {class_weight: ‘balanced’, tol: 0.01}}.
+I.e. {SVC: {C: 1}} is not supported at present.
+This class is mainly intended to provide a base for constructing
+domain languages for pipeline construction. Examples can be found
+in the ‘data/param’ directory (in YAML).</p>
+<dl class="method">
+<dt id="csr.misc.ObjectBuilder.parse">
+<code class="sig-name descname">parse</code><span class="sig-paren">(</span><em class="sig-param">param</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#ObjectBuilder.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.ObjectBuilder.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct an object from the given structure.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="csr.misc.Prototype">
+<em class="property">class </em><code class="sig-prename descclassname">csr.misc.</code><code class="sig-name descname">Prototype</code><span class="sig-paren">(</span><em class="sig-param">klass</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#Prototype"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.Prototype" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Implementation of the Prototype patterns without
+resorting to deepcopying. This should therefore be
+safe to use even for classes that cannot be cloned
+such as files, sockets, or tensorflow models (which
+depend on gpu state)</p>
+<dl class="class">
+<dt id="csr.misc.Prototype.PrototypeObj">
+<em class="property">class </em><code class="sig-name descname">PrototypeObj</code><span class="sig-paren">(</span><em class="sig-param">klass</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kv_args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#Prototype.PrototypeObj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.Prototype.PrototypeObj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="csr.misc.Prototype.PrototypeObj.build">
+<code class="sig-name descname">build</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/csr/misc.html#Prototype.PrototypeObj.build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#csr.misc.Prototype.PrototypeObj.build" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-csr">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-csr" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/csr.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

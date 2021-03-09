@@ -1,0 +1,33 @@
+# coding: utf-8
+
+from Data import DataStream
+
+d = DataStream.parse(open("tmp/yearbook_2017_raw_reduced").read())
+
+final_selection = [
+    26911827,
+    27793791,
+    26934708,
+    26774763,
+    27531100,
+    27813129,
+    27426236,
+    26342217,
+    27539197,
+    27826755,
+    26923634,
+    27836816,
+]
+final_selection = [str(pmid) for pmid in final_selection]
+
+for row in d:
+#    if not row.label in ['Y', 'N', 'M', 'OT']: print type(row.label)
+    if row.label == 'Y':
+        if row.PMID not in final_selection:
+            row.label = 'M'
+    if not row.label in ['Y', 'N', 'M', 'OT']:
+        # Some values are misclassified in the gold standard because the
+        # wrong box was ticked (Rejeté sur le résumé). Assume these are all OT
+        row.label = 'OT'
+
+print d.marshall()

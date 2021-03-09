@@ -1,0 +1,284 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>bin.ML.extra.Waterloo &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for bin.ML.extra.Waterloo</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1"># ~~~~~~                    Import                  ~~~~~~</span>
+
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.base</span> <span class="kn">import</span> <span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span>
+<span class="kn">from</span> <span class="nn">sklearn.datasets</span> <span class="kn">import</span> <span class="n">load_svmlight_file</span>
+
+<span class="kn">from</span> <span class="nn">bin.Log</span> <span class="kn">import</span> <span class="n">start_statusbar</span>
+
+<span class="c1"># ~~~~~~                    Setup                   ~~~~~~</span>
+
+<span class="n">STATUS</span> <span class="o">=</span> <span class="n">start_statusbar</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+<span class="c1"># ~~~~~~                  Definitions               ~~~~~~</span>
+
+<div class="viewcode-block" id="sizeof_fmt"><a class="viewcode-back" href="../../../../bin.ML.extra.html#bin.ML.extra.Waterloo.sizeof_fmt">[docs]</a><span class="k">def</span> <span class="nf">sizeof_fmt</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;B&#39;</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span><span class="s1">&#39;Ki&#39;</span><span class="p">,</span><span class="s1">&#39;Mi&#39;</span><span class="p">,</span><span class="s1">&#39;Gi&#39;</span><span class="p">,</span><span class="s1">&#39;Ti&#39;</span><span class="p">,</span><span class="s1">&#39;Pi&#39;</span><span class="p">,</span><span class="s1">&#39;Ei&#39;</span><span class="p">,</span><span class="s1">&#39;Zi&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1024.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%3.1f%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">unit</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+        <span class="n">num</span> <span class="o">/=</span> <span class="mf">1024.0</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%.1f%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="s1">&#39;Yi&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TREC_BMI_Transformer"><a class="viewcode-back" href="../../../../bin.ML.extra.html#bin.ML.extra.Waterloo.TREC_BMI_Transformer">[docs]</a><span class="k">class</span> <span class="nc">TREC_BMI_Transformer</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tf_idf</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+        <span class="n">installation_root</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">)</span>
+        <span class="n">exec_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">installation_root</span><span class="p">,</span> <span class="s1">&#39;lib&#39;</span><span class="p">,</span> <span class="s1">&#39;TREC_BMI&#39;</span><span class="p">,</span> <span class="s1">&#39;featurekit&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">TREC_BMI_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">exec_dir</span><span class="p">)</span>
+        
+<div class="viewcode-block" id="TREC_BMI_Transformer.fit"><a class="viewcode-back" href="../../../../bin.ML.extra.html#bin.ML.extra.Waterloo.TREC_BMI_Transformer.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Unfitted transformer</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+    
+    <span class="c1"># For debugging</span>
+<div class="viewcode-block" id="TREC_BMI_Transformer.transform_preloaded"><a class="viewcode-back" href="../../../../bin.ML.extra.html#bin.ML.extra.Waterloo.TREC_BMI_Transformer.transform_preloaded">[docs]</a>    <span class="k">def</span> <span class="nf">transform_preloaded</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">run_id</span><span class="p">):</span>
+        
+        <span class="n">dirname</span> <span class="o">=</span> <span class="s1">&#39;TREC_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">run_id</span>
+        <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Extracting pretrained TREC BMI features (run ID: </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">run_id</span><span class="p">)</span>
+        
+        <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Using external executables in: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">TREC_BMI_dir</span><span class="p">)</span>
+        <span class="c1"># This section will crash and burn if another thread changes the cwd...</span>
+        
+        <span class="n">owd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;temp_trec&#39;</span><span class="p">)</span>
+            
+            <span class="n">ret_val</span> <span class="o">=</span> <span class="n">load_svmlight_file</span><span class="p">(</span><span class="s1">&#39;labeled.svm.</span><span class="si">%s</span><span class="s1">.fil&#39;</span> <span class="o">%</span> <span class="n">dirname</span><span class="p">)</span>
+            <span class="n">X_t</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ret_val</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ret_val</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">n</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">X_t</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Extracted data of size [</span><span class="si">%i</span><span class="s1"> x </span><span class="si">%i</span><span class="s1">] from input data of length </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                    <span class="p">))</span>
+            <span class="c1"># Sanity: Did the processing change the order of the labels?</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">([(</span><span class="n">l</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span> <span class="ow">and</span> <span class="mi">1</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">y</span> <span class="k">for</span> <span class="n">l</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">y</span><span class="p">)])</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="n">n</span>
+            <span class="k">return</span> <span class="n">X_t</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">owd</span><span class="p">)</span>
+            <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s1">&#39;Changing to original cwd: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span>                </div>
+    
+<div class="viewcode-block" id="TREC_BMI_Transformer.transform"><a class="viewcode-back" href="../../../../bin.ML.extra.html#bin.ML.extra.Waterloo.TREC_BMI_Transformer.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform_preloaded</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;OC6YJ2FB&#39;</span><span class="p">)</span>
+    
+<span class="c1">#        return self.transform_preloaded(data, &#39;59CGBS0W&#39;)</span>
+<span class="c1">#        return self.transform_preloaded(data, &#39;744VLEYD&#39;)</span>
+<span class="c1">#        return self.transform_preloaded(data, &#39;M56HTJZF&#39;) # Prefit title + abstract</span>
+<span class="c1">#        return self.transform_preloaded(data, &#39;HNS8A8GR&#39;) # Prefit abstract vs seed title</span>
+<span class="c1">#        return self.transform_preloaded(data, &#39;ZT3ZRNV4&#39;) # Prefit abstract vs seed title (all topics?)</span>
+<span class="c1">#        return self.transform_preloaded(data, &#39;BWYR750G&#39;) # Prefit abstract vs seed title</span>
+        
+        <span class="n">chars</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_uppercase</span> <span class="o">+</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span>
+        <span class="n">run_id</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">SystemRandom</span><span class="p">()</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span>
+        <span class="n">dirname</span> <span class="o">=</span> <span class="s1">&#39;TREC_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">run_id</span>
+        <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Extracting TREC BMI features (run ID: </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">run_id</span><span class="p">)</span>
+        
+        <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Using external executables in: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">TREC_BMI_dir</span><span class="p">)</span>
+        <span class="c1"># This section will crash and burn if another thread changes the cwd...</span>
+        
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">temp_dir</span><span class="p">:</span>
+            <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Changing to temp directory: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">temp_dir</span><span class="p">)</span>
+            
+            <span class="c1"># Copy stopwords file to temp dir so the scripts can access it</span>
+            <span class="n">src_stopwords</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">TREC_BMI_dir</span><span class="p">,</span> <span class="s1">&#39;english.stop.stem&#39;</span><span class="p">)</span>
+            <span class="n">dst_stopwords</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;english.stop.stem&#39;</span><span class="p">)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">src_stopwords</span><span class="p">,</span> <span class="n">dst_stopwords</span><span class="p">)</span>
+            
+            <span class="n">owd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+<span class="c1">#                os.chdir(temp_dir)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;temp_trec&#39;</span><span class="p">)</span>
+                
+                <span class="c1"># Book keeping for reconstructing the features</span>
+                <span class="n">filename_to_label</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">row_index_to_filename</span> <span class="o">=</span> <span class="p">[]</span>
+                
+                <span class="c1"># Filename format is accession number padded with zeroes</span>
+                <span class="c1"># up to the largest digit length</span>
+                <span class="n">filename_fmt</span> <span class="o">=</span> <span class="s1">&#39;doc_</span><span class="si">%%</span><span class="s1">0</span><span class="si">%d</span><span class="s1">d&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">dirname</span><span class="p">)</span>
+                <span class="n">row_i</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="n">filename_fmt</span> <span class="o">%</span> <span class="n">row_i</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="n">filename_to_label</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">label</span>
+                    <span class="n">row_index_to_filename</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+<span class="c1">#                    STATUS[5](&#39;Creating file: %s&#39; % os.path.realpath(filename))</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">out</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">split</span> <span class="o">==</span> <span class="s1">&#39;seed&#39;</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">row</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">row</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">row</span><span class="o">.</span><span class="n">abstract</span><span class="p">)</span>
+                    <span class="n">row_i</span> <span class="o">+=</span> <span class="mi">1</span>
+                
+                <span class="n">f_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span>
+                             <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+                <span class="n">f_n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">dirname</span><span class="p">))</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Created </span><span class="si">%i</span><span class="s1"> temporary files with total size </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">f_n</span><span class="p">,</span> <span class="n">sizeof_fmt</span><span class="p">(</span><span class="n">f_size</span><span class="p">)))</span>
+                
+<span class="c1">#                print(os.listdir(dirname))</span>
+                <span class="n">temp_env</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">temp_env</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;:&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">temp_env</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">TREC_BMI_dir</span><span class="p">])</span>
+<span class="c1">#                exec_path = os.path.join(&#39;featurekit&#39;, &#39;dofeatures&#39;)</span>
+                <span class="n">exec_path</span> <span class="o">=</span> <span class="s1">&#39;dofeatures&#39;</span>
+                <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">([</span><span class="n">exec_path</span><span class="p">,</span> <span class="n">dirname</span><span class="p">],</span> <span class="n">env</span> <span class="o">=</span> <span class="n">temp_env</span><span class="p">)</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Processing data with external script...&#39;</span><span class="p">)</span>
+                <span class="n">proc</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span> <span class="c1"># Wait for completion</span>
+<span class="c1">#                STATUS[5](&#39;Done.&#39;)</span>
+                <span class="c1"># Check if failed?</span>
+                
+                <span class="c1"># The BMI feature pipeline outputs labels = filenames</span>
+                <span class="c1"># whereas the classifiers expect actual labels</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Relabeling extracted data...&#39;</span><span class="p">)</span>
+                <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;(</span><span class="si">%s</span><span class="s1">/[-\w]*)\W(.*)&#39;</span> <span class="o">%</span> <span class="n">dirname</span><span class="p">)</span>
+                <span class="n">extracted_data</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;svm.</span><span class="si">%s</span><span class="s1">.fil&#39;</span> <span class="o">%</span> <span class="n">dirname</span><span class="p">)</span> <span class="k">as</span> <span class="n">svm_file_in</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">svm_file_in</span><span class="p">:</span>
+                        <span class="n">match</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                        <span class="k">assert</span> <span class="n">match</span>
+                        <span class="n">filename</span><span class="p">,</span> <span class="n">cargo</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="c1">#                            STATUS[10](&quot;Parsing &#39;%s&#39;&quot; % (line))</span>
+<span class="c1">#                        STATUS[10](&#39;Relabeling %s =&gt; %s&#39; % (filename,</span>
+<span class="c1">#                                                            filename_to_label[filename]))</span>
+                        <span class="c1"># Usually the label must be numerical in the svmlight format?</span>
+                        <span class="n">label</span> <span class="o">=</span> <span class="p">(</span><span class="n">filename_to_label</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span> <span class="ow">and</span> <span class="mi">1</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span>
+                        <span class="n">out_string</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%i</span><span class="s1"> </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">cargo</span><span class="p">)</span>
+                        <span class="n">extracted_data</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">=</span> <span class="n">out_string</span>
+                <span class="c1"># The extraction script outputs rows in lexical order of filenames</span>
+                <span class="c1"># Make no assumptions, this might well differ on different systems</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;labeled.svm.</span><span class="si">%s</span><span class="s1">.fil&#39;</span> <span class="o">%</span> <span class="n">dirname</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">svm_file_out</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">row_index_to_filename</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">extracted_data</span><span class="p">:</span>
+                            <span class="n">out_string</span> <span class="o">=</span> <span class="n">extracted_data</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span>
+                            <span class="n">svm_file_out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">out_string</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">label</span> <span class="o">=</span> <span class="p">(</span><span class="n">filename_to_label</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span> <span class="ow">and</span> <span class="mi">1</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span>
+                            <span class="n">out_string</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%i</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">label</span><span class="p">)</span>
+                            <span class="n">svm_file_out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">out_string</span><span class="p">)</span>
+                
+<span class="c1">#                STATUS[5](&#39;Done.&#39;)</span>
+                
+                <span class="n">ret_val</span> <span class="o">=</span> <span class="n">load_svmlight_file</span><span class="p">(</span><span class="s1">&#39;labeled.svm.</span><span class="si">%s</span><span class="s1">.fil&#39;</span> <span class="o">%</span> <span class="n">dirname</span><span class="p">)</span>
+                <span class="n">X_t</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ret_val</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ret_val</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="c1">#                for y_1, y_2 in zip(data.label, y):</span>
+<span class="c1">#                    print(&#39;%s - %i&#39; % (y_1, y_2))</span>
+                <span class="n">n</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">X_t</span><span class="o">.</span><span class="n">shape</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">5</span><span class="p">](</span><span class="s1">&#39;Extracted data of size [</span><span class="si">%i</span><span class="s1"> x </span><span class="si">%i</span><span class="s1">] from input data of length </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                        <span class="p">))</span>
+                <span class="c1"># Sanity: Did the processing change the order of the labels?</span>
+                <span class="k">assert</span> <span class="nb">all</span><span class="p">([(</span><span class="n">l</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span> <span class="ow">and</span> <span class="mi">1</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">y</span> <span class="k">for</span> <span class="n">l</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">y</span><span class="p">)])</span>
+                <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="n">n</span>
+                <span class="k">return</span> <span class="n">X_t</span>
+                
+                        
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">owd</span><span class="p">)</span>
+                <span class="n">STATUS</span><span class="p">[</span><span class="mi">10</span><span class="p">](</span><span class="s1">&#39;Changing to original cwd: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

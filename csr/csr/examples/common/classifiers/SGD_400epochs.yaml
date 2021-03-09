@@ -1,0 +1,21 @@
+
+#====================================================
+# Stochastic gradient descent (logistic regression)
+#----------------------------------------------------
+# A straightforward ranking algorithm with settings
+# that work well on a range of ranking problems,
+# particularly for small data. The algorithm is
+# exceptionally fast for sparse data, and performs
+# well with large numbers of features
+# max_iter may need to be fine-tuned, the other
+# settings can usually be left as-is
+#====================================================
+
+SGD:
+  loss:         log             # Logistic regression
+  penalty:      l2              # Regularization
+  alpha:        0.0001
+  class_weight: { Y: 80, N: 1 }
+  max_iter:     400
+  tol:          0.001
+  shuffle:      True

@@ -1,0 +1,12 @@
+#!bin/bash
+
+python -m bin.Train --data data/full/COMET/COMET_all.json \
+       --sparse \
+       --pipeline data/param/pipeline/sparse_text_only.yaml \
+       --classifier data/param/classifier/SGD.yaml \
+       --RF_mode 'none' \
+       --train_on split!=update3 \
+       --test_on  split=update3 \
+       --output '../runs/COMET/static_text_only_update3_cleaned_html.json' \
+       --output_format 'DataStream' \
+       --verbosity 10

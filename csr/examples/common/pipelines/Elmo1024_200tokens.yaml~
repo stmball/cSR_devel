@@ -1,0 +1,9 @@
+
+Sequence:
+  - Parallel:
+      - EmbSequence:
+          field:      title OR abstract
+          seq_length: 200
+          embeddings: ELMo
+          throughput: 16000
+

@@ -1,0 +1,68 @@
+#export BERT_BASE_DIR=pretrained/uncased_L-12_H-768_A-12
+export BERT_BASE_DIR=pretrained/pubmed_pmc_470k
+export CLEX_DIR=data/CLEX/
+
+declare -a reviews=('CD007394'
+		    'CD007427'
+		    'CD008054'
+		    'CD008081'
+		    'CD008760'
+		    'CD008782'
+		    'CD008892'
+		    'CD009372'
+		    'CD009647'
+		    'CD010339'
+		    'CD010360'
+		    'CD010653'
+		    'CD010705'
+		    'CD011420')
+declare -a annotators=('Mariska'
+		       'Rene')
+
+for annotator in "${annotators[@]}"
+do
+    for d in 1 2 3
+    do
+	for review in "${reviews[@]}"
+	do
+	    python run_scorer.py \
+		   --task_name=clex"$d"_"${annotator}"_"${review}" \
+		   --do_train=true \
+		   --do_eval=true \
+		   --data_dir=$CLEX_DIR/ \
+		   --vocab_file=$BERT_BASE_DIR/vocab.txt \
+		   --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+		   --init_checkpoint=$BERT_BASE_DIR/biobert_model.ckpt \
+		   --max_seq_length=128 \
+		   --train_batch_size=32 \
+		   --learning_rate=2e-5 \
+		   --num_train_epochs=3.0 \
+	--output_dir=/tmp/clex_CV_output/clex"$d"_output_CV_"${annotator}"_"${review}"/
+	    python scripts/merge_predicted.py \
+		   --input data/CLEX/annotated_"$d"_dev_"${annotator}"_"${review}".tsv \
+		   --output data/CLEX/annotated_"$d"_dev_"${annotator}"_"${review}"_out.tsv \
+	--scores /tmp/clex_CV_output/clex"$d"_output_CV_"${annotator}"_"${review}"/predicted.txt
+	    rm -r /tmp/clex_CV_output/clex"$d"_output_CV_"${annotator}"_"${review}"
+	    
+	    python run_scorer.py \
+		   --task_name=clex"$d"_umls_"${annotator}"_"${review}" \
+		   --do_train=true \
+		   --do_eval=true \
+		   --data_dir=$CLEX_DIR/ \
+		   --vocab_file=$BERT_BASE_DIR/vocab.txt \
+		   --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+		   --init_checkpoint=$BERT_BASE_DIR/biobert_model.ckpt \
+		   --max_seq_length=128 \
+		   --train_batch_size=32 \
+		   --learning_rate=2e-5 \
+		   --num_train_epochs=3.0 \
+	--output_dir=/tmp/clex_CV_output/clex"$d"_UMLS_output_CV_"${annotator}"_"${review}"/
+	    python scripts/merge_predicted.py \
+		   --input data/CLEX/annotated_UMLS_"$d"_dev_"${annotator}"_"${review}".tsv \
+		   --output data/CLEX/annotated_UMLS_"$d"_dev_"${annotator}"_"${review}"_out.tsv \
+     --scores /tmp/clex_CV_output/clex"$d"_UMLS_output_CV_"${annotator}"_"${review}"/predicted.txt
+	    rm -r /tmp/clex_CV_output/clex"$d"_UMLS_output_CV_"${annotator}"_"${review}"
+	    
+	done
+    done
+done

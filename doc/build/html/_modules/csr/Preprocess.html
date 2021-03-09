@@ -1,0 +1,353 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>csr.Preprocess &#8212; cSR 1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for csr.Preprocess</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1"># coding: utf-8</span>
+
+<span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">string</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.feature_extraction.text</span> <span class="kn">import</span> <span class="n">CountVectorizer</span><span class="p">,</span> <span class="n">TfidfTransformer</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">svm</span><span class="p">,</span> <span class="n">linear_model</span><span class="p">,</span> <span class="n">tree</span><span class="p">,</span> <span class="n">ensemble</span><span class="p">,</span> <span class="n">naive_bayes</span><span class="p">,</span> <span class="n">multiclass</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">feature_selection</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">preprocessing</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">decomposition</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">cluster</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">metrics</span>
+<span class="kn">from</span> <span class="nn">sklearn.externals.joblib</span> <span class="kn">import</span> <span class="n">Memory</span>
+<span class="kn">from</span> <span class="nn">sklearn.pipeline</span> <span class="kn">import</span> <span class="n">Pipeline</span><span class="p">,</span> <span class="n">FeatureUnion</span>
+<span class="kn">from</span> <span class="nn">sklearn.base</span> <span class="kn">import</span> <span class="n">BaseEstimator</span><span class="p">,</span> <span class="n">TransformerMixin</span>
+<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="kn">import</span> <span class="n">GridSearchCV</span><span class="p">,</span> <span class="n">train_test_split</span><span class="p">,</span> <span class="n">cross_val_score</span><span class="p">,</span> <span class="n">StratifiedKFold</span>
+<span class="c1">#from sklearn.cross_validation import cross_val_score, StratifiedKFold</span>
+<span class="kn">import</span> <span class="nn">nltk</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">html</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="c1">#from Data import DataStream</span>
+
+<div class="viewcode-block" id="add_placeholder_for_missing_data"><a class="viewcode-back" href="../../csr.html#csr.Preprocess.add_placeholder_for_missing_data">[docs]</a><span class="k">def</span> <span class="nf">add_placeholder_for_missing_data</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">header</span><span class="p">:</span>
+            <span class="n">entry</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+            <span class="c1"># Testing &#39;not entry&#39; would inadvertantly trigger on numerical</span>
+            <span class="c1"># zero, and boolean False, which could be reasonable entries</span>
+<span class="c1">#            if entry == &#39;&#39;: row[col] = &#39;MISSING_DATA&#39;</span>
+            <span class="k">if</span> <span class="n">entry</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="strip_numerals"><a class="viewcode-back" href="../../csr.html#csr.Preprocess.strip_numerals">[docs]</a><span class="k">def</span> <span class="nf">strip_numerals</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">substitute_numerals</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+        <span class="c1"># Replace numeral spans with zero</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;\d+&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_BACKGROUND&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_METHODS&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_RESULTS&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_CONCLUSIONS&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">header</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="n">row</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">substitute_numerals</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">field</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="clean_text"><a class="viewcode-back" href="../../csr.html#csr.Preprocess.clean_text">[docs]</a><span class="k">def</span> <span class="nf">clean_text</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">clean_text_inner</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+        
+        <span class="c1"># Convert HTML entities to unicode</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">old_text</span> <span class="o">=</span> <span class="n">text</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">unescape</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">text</span> <span class="o">==</span> <span class="n">old_text</span><span class="p">:</span> <span class="k">break</span>
+
+        <span class="c1"># Remove HTML formatting</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;&lt;[^&lt;]+?&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">text</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_BACKGROUND&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_METHODS&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_RESULTS&#39;</span><span class="p">,</span>
+                                  <span class="s1">&#39;abstract_CONCLUSIONS&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">header</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="n">row</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_text_inner</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">field</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="StructuredAbstractPreprocessor"><a class="viewcode-back" href="../../csr.html#csr.Preprocess.StructuredAbstractPreprocessor">[docs]</a><span class="k">class</span> <span class="nc">StructuredAbstractPreprocessor</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        
+        <span class="n">features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;BOW&#39;</span><span class="p">,</span> <span class="n">Pipeline</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">_Classifier_ItemSelector</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;sentence&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">,</span> <span class="n">CountVectorizer</span><span class="p">(</span><span class="n">ngram_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                                               <span class="n">binary</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                               <span class="n">lowercase</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;f_selector&#39;</span><span class="p">,</span> <span class="n">feature_selection</span><span class="o">.</span><span class="n">VarianceThreshold</span><span class="p">(</span><span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.001</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;densify&#39;</span><span class="p">,</span> <span class="n">_Classifier_DenseTransformer</span><span class="p">()),</span>
+                <span class="p">(</span><span class="s1">&#39;typecast&lt;float&gt;&#39;</span><span class="p">,</span> <span class="n">_Classifier_Typecast</span><span class="p">(</span><span class="s1">&#39;float_&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">StandardScaler</span><span class="p">())</span>
+                <span class="p">])))</span>
+        <span class="n">features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;BOW_prev&#39;</span><span class="p">,</span> <span class="n">Pipeline</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">_Classifier_ItemSelector</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;s_prev&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">,</span> <span class="n">CountVectorizer</span><span class="p">(</span><span class="n">ngram_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                                               <span class="n">binary</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                               <span class="n">lowercase</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;f_selector&#39;</span><span class="p">,</span> <span class="n">feature_selection</span><span class="o">.</span><span class="n">VarianceThreshold</span><span class="p">(</span><span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.001</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;densify&#39;</span><span class="p">,</span> <span class="n">_Classifier_DenseTransformer</span><span class="p">()),</span>
+                <span class="p">(</span><span class="s1">&#39;typecast&lt;float&gt;&#39;</span><span class="p">,</span> <span class="n">_Classifier_Typecast</span><span class="p">(</span><span class="s1">&#39;float_&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">StandardScaler</span><span class="p">())</span>
+                <span class="p">])))</span>
+        <span class="n">features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;BOW_next&#39;</span><span class="p">,</span> <span class="n">Pipeline</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">_Classifier_ItemSelector</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;s_next&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;vectorizer&#39;</span><span class="p">,</span> <span class="n">CountVectorizer</span><span class="p">(</span><span class="n">ngram_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                                               <span class="n">binary</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                               <span class="n">lowercase</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;f_selector&#39;</span><span class="p">,</span> <span class="n">feature_selection</span><span class="o">.</span><span class="n">VarianceThreshold</span><span class="p">(</span><span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.001</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;densify&#39;</span><span class="p">,</span> <span class="n">_Classifier_DenseTransformer</span><span class="p">()),</span>
+                <span class="p">(</span><span class="s1">&#39;typecast&lt;float&gt;&#39;</span><span class="p">,</span> <span class="n">_Classifier_Typecast</span><span class="p">(</span><span class="s1">&#39;float_&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">StandardScaler</span><span class="p">())</span>
+                <span class="p">])))</span>
+        <span class="n">features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;pos&#39;</span><span class="p">,</span> <span class="n">Pipeline</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;selector&#39;</span><span class="p">,</span> <span class="n">_Classifier_ItemSelector2</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;pos&#39;</span><span class="p">)),</span>
+<span class="c1">#                (&#39;vectorizer&#39;, CountVectorizer(binary = True)),</span>
+<span class="c1">#                (&#39;densify&#39;, _Classifier_DenseTransformer()),</span>
+                <span class="p">(</span><span class="s1">&#39;typecast&lt;float&gt;&#39;</span><span class="p">,</span> <span class="n">_Classifier_Typecast</span><span class="p">(</span><span class="s1">&#39;float_&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;scaling&#39;</span><span class="p">,</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">StandardScaler</span><span class="p">())</span>
+                <span class="p">])))</span>
+        
+<span class="c1">#        dimension_reducer = decomposition.PCA(n_components = 4000)</span>
+        <span class="n">dimension_reducer</span> <span class="o">=</span> <span class="n">decomposition</span><span class="o">.</span><span class="n">PCA</span><span class="p">()</span>
+        
+        <span class="n">classifier_model</span> <span class="o">=</span> <span class="n">linear_model</span><span class="o">.</span><span class="n">LogisticRegression</span><span class="p">(</span><span class="n">penalty</span> <span class="o">=</span> <span class="s1">&#39;l2&#39;</span><span class="p">,</span>
+                                                           <span class="n">multi_class</span> <span class="o">=</span> <span class="s1">&#39;multinomial&#39;</span><span class="p">,</span>
+                                                           <span class="n">solver</span> <span class="o">=</span> <span class="s1">&#39;sag&#39;</span><span class="p">,</span>
+                                                           <span class="n">max_iter</span> <span class="o">=</span> <span class="mi">400</span><span class="p">,</span>
+                                                           <span class="n">verbose</span> <span class="o">=</span> <span class="mi">1</span>
+                                                           <span class="p">)</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        classifier_model = multiclass.OneVsRestClassifier(</span>
+<span class="sd">            svm.SVC(kernel = &#39;linear&#39;,</span>
+<span class="sd">                    probability = True,</span>
+<span class="sd">                    class_weight = &#39;balanced&#39;,</span>
+<span class="sd">                    verbose = True</span>
+<span class="sd">                    )</span>
+<span class="sd">            )</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;features&#39;</span><span class="p">,</span>            <span class="n">FeatureUnion</span><span class="p">(</span><span class="n">features</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s1">&#39;dimension_reduction&#39;</span><span class="p">,</span> <span class="n">dimension_reducer</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;classifier&#39;</span><span class="p">,</span>          <span class="n">classifier_model</span><span class="p">)</span>
+                <span class="p">])</span>
+        
+<div class="viewcode-block" id="StructuredAbstractPreprocessor.train"><a class="viewcode-back" href="../../csr.html#csr.Preprocess.StructuredAbstractPreprocessor.train">[docs]</a>    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        
+        <span class="n">X_train</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="s1">&#39;sentence&#39;</span><span class="p">,</span> <span class="s1">&#39;s_prev&#39;</span><span class="p">,</span> <span class="s1">&#39;s_next&#39;</span><span class="p">,</span> <span class="s1">&#39;pos&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">)</span>
+        
+        <span class="kn">from</span> <span class="nn">nltk</span> <span class="kn">import</span> <span class="n">sent_tokenize</span>
+        <span class="n">sentence_tokenizer</span> <span class="o">=</span> <span class="n">sent_tokenize</span>
+        <span class="c1"># Pretrained tokenizer, might not be optimal on the domain...</span>
+        <span class="c1"># It appears to well regardless (abbreviations seem OK)</span>
+        
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Processing data...</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="c1"># Let us assume that this order is always followed</span>
+            <span class="c1"># The alternative is to look up the order in &#39;abstract&#39;</span>
+            <span class="n">abs_pos</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;BACKGROUND&#39;</span><span class="p">,</span> <span class="s1">&#39;METHODS&#39;</span><span class="p">,</span> <span class="s1">&#39;RESULTS&#39;</span><span class="p">,</span> <span class="s1">&#39;CONCLUSIONS&#39;</span><span class="p">]:</span>
+                <span class="n">block</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;abstract_&#39;</span> <span class="o">+</span> <span class="n">label</span><span class="p">]</span>
+                <span class="n">sentences</span> <span class="o">=</span> <span class="n">sentence_tokenizer</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+                <span class="n">sentences</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;\d+&#39;</span><span class="p">,</span> <span class="s1">&#39;NUM&#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sentences</span><span class="p">]</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39; &#39;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">))</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Progress: </span><span class="si">%i</span><span class="s1"> / </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+                <span class="k">for</span> <span class="n">s_prev</span><span class="p">,</span> <span class="n">sentence</span><span class="p">,</span> <span class="n">s_next</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s1">&#39;ABSTRACT_START&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">sentences</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                    <span class="n">sentences</span><span class="p">,</span>
+                                                    <span class="n">sentences</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;ABSTRACT_END&#39;</span><span class="p">]</span>
+                                                    <span class="p">):</span>
+                    <span class="n">abs_pos</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">pos</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">*</span><span class="n">abs_pos</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">sentences</span><span class="p">)</span>
+                    <span class="n">X_train</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">sentence</span><span class="p">,</span> <span class="n">s_prev</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">label</span><span class="p">])</span>
+<span class="c1">#                    sys.stderr.write(&#39;%s\n&#39; % sentence)</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Done.</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        
+        <span class="n">target_size</span> <span class="o">=</span> <span class="mi">20000</span>
+        <span class="n">cur_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+        <span class="n">n_splits</span> <span class="o">=</span> <span class="n">cur_size</span> <span class="o">/</span> <span class="n">target_size</span>
+        <span class="k">if</span> <span class="n">n_splits</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span> <span class="n">n_splits</span> <span class="o">=</span> <span class="mi">2</span>
+
+        <span class="kn">import</span> <span class="nn">itertools</span>
+        <span class="n">folds</span> <span class="o">=</span> <span class="n">StratifiedKFold</span><span class="p">(</span><span class="n">n_splits</span> <span class="o">=</span> <span class="n">n_splits</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">X_train</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="n">folds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">folds</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">X_eval</span>  <span class="o">=</span> <span class="n">X_train</span><span class="p">[</span><span class="n">folds</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">X_train</span> <span class="o">=</span> <span class="n">X_train</span><span class="p">[</span><span class="n">folds</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+        
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Training on </span><span class="si">%i</span><span class="s1"> sentences</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">))</span>
+        
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Training...</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">X_train</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="n">Y_eval_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_eval</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">metrics</span><span class="o">.</span><span class="n">classification_report</span><span class="p">(</span><span class="n">X_eval</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">Y_eval_pred</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="StructuredAbstractPreprocessor.reconstruct"><a class="viewcode-back" href="../../csr.html#csr.Preprocess.StructuredAbstractPreprocessor.reconstruct">[docs]</a>    <span class="k">def</span> <span class="nf">reconstruct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+                
+        <span class="kn">from</span> <span class="nn">nltk</span> <span class="kn">import</span> <span class="n">sent_tokenize</span>
+        <span class="n">sentence_tokenizer</span> <span class="o">=</span> <span class="n">sent_tokenize</span>
+        <span class="c1"># Pretrained tokenizer, might not be optimal on the domain...</span>
+        <span class="c1"># It appears to well regardless (abbreviations seem OK)</span>
+        
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Reconstructing...</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">block</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">abstract</span>
+            
+            <span class="n">X</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="s1">&#39;sentence&#39;</span><span class="p">,</span> <span class="s1">&#39;orig_sentence&#39;</span><span class="p">,</span> <span class="s1">&#39;s_prev&#39;</span><span class="p">,</span> <span class="s1">&#39;s_next&#39;</span><span class="p">,</span> <span class="s1">&#39;pos&#39;</span><span class="p">)</span>
+            <span class="n">abs_pos</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">orig_sentences</span> <span class="o">=</span> <span class="n">sentence_tokenizer</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+            <span class="n">sentences</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;\d+&#39;</span><span class="p">,</span> <span class="s1">&#39;NUM&#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">orig_sentences</span><span class="p">]</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39; &#39;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">))</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Progress: </span><span class="si">%i</span><span class="s1"> / </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">s_prev</span><span class="p">,</span> <span class="n">sentence</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">orig_sentence</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s1">&#39;ABSTRACT_START&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">sentences</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                               <span class="n">sentences</span><span class="p">,</span>
+                                                               <span class="n">sentences</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;ABSTRACT_END&#39;</span><span class="p">],</span>
+                                                               <span class="n">orig_sentences</span>
+                                                               <span class="p">):</span>
+                <span class="n">abs_pos</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">*</span><span class="n">abs_pos</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">sentences</span><span class="p">)</span>
+                <span class="n">X</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">sentence</span><span class="p">,</span> <span class="n">orig_sentence</span><span class="p">,</span> <span class="n">s_prev</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">pos</span><span class="p">])</span>
+            
+            <span class="n">Y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;BACKGROUND&#39;</span><span class="p">,</span> <span class="s1">&#39;METHODS&#39;</span><span class="p">,</span> <span class="s1">&#39;RESULTS&#39;</span><span class="p">,</span> <span class="s1">&#39;CONCLUSIONS&#39;</span><span class="p">]:</span>
+                <span class="n">ii</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Y_pred</span><span class="p">)</span> <span class="o">==</span> <span class="n">label</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">block</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">.</span><span class="n">orig_sentence</span><span class="p">)</span>
+                <span class="n">d</span><span class="p">[</span><span class="s1">&#39;abstract_&#39;</span> <span class="o">+</span> <span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">block</span>
+            
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Done.</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">traceback</span>
+    <span class="kn">import</span> <span class="nn">argparse</span>
+    
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span> <span class="o">=</span> <span class="s1">&#39;Preprocess data&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--data&#39;</span><span class="p">,</span>            <span class="n">nargs</span>  <span class="o">=</span> <span class="s1">&#39;+&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--method&#39;</span><span class="p">,</span> <span class="n">nargs</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">default</span> <span class="o">=</span> <span class="p">[])</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    
+    <span class="n">records</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DataStream</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">records</span><span class="p">)</span> <span class="o">==</span> <span class="n">DataStream</span><span class="p">:</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">records</span><span class="p">]</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">DataStream</span><span class="p">(</span><span class="o">*</span><span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="s1">&#39;structure&#39;</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">method</span><span class="p">:</span>
+        <span class="n">structurer</span> <span class="o">=</span> <span class="n">StructuredAbstractPreprocessor</span><span class="p">()</span>
+        <span class="n">structurer</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">structurer</span><span class="o">.</span><span class="n">reconstruct</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">marshall</span><span class="p">())</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">cSR</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Christopher Norman.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
