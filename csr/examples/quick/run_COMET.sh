@@ -23,9 +23,17 @@ if [ $? -eq 0 ]; then
     python -m csr.examples.common.preprocess_data \
 	   --format endnote_xml \
 	   --train_N_paths \
-	   data/raw/COMET/COMET_update3_M.xml \
+	   data/raw/COMET/negative/COMET_originalSR_M.xml \
+	   data/raw/COMET/negative/COMET_update1_M.xml \
+	   data/raw/COMET/negative/COMET_update2_M.xml \
+	   data/raw/COMET/negative/COMET_update3_M.xml \
+	   data/raw/COMET/negative/COMET_update4_M.xml \
 	   --train_Y_paths \
-	   data/raw/COMET/COMET_update3_Y.xml \
+	   data/raw/COMET/positive/COMET_originalSR_Y.xml \
+	   data/raw/COMET/positive/COMET_update1_Y.xml \
+	   data/raw/COMET/positive/COMET_update2_Y.xml \
+	   data/raw/COMET/positive/COMET_update3_Y.xml \
+	   data/raw/COMET/positive/COMET_update4_Y.xml \
 	   --test_paths \
 	   data/raw/COMET/COMET_update6-deduplicated.xml \
 	   --out_path \
