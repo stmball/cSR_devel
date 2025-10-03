@@ -50,6 +50,7 @@ args = parser.parse_args(sys.argv[1:])
 
 # ~~~~~~ Function Definitions ~~~~~~
 
+nltk.download('punkt')
 noop_sent_tokenize = lambda x: [x]
 noop               = lambda x:  x
 tokenize = Tokenizer(sent_tokenize = noop_sent_tokenize,

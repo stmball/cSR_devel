@@ -45,7 +45,7 @@ if [ $? -eq 0 ]; then
     python -m csr.Train --data /tmp/"$TMPDIR"/data.json \
 	   --sparse \
 	   --pipeline data/param/pipeline/sparse_text_trivial.yaml \
-	   --classifier data/param/classifier/SGD.yaml \
+	   --classifier data/param/classifier/SVM_RBF.yaml \
 	   --train_on split=train \
 	   --test_on  split=test \
 	   --output /tmp/"$TMPDIR"/out.json \
