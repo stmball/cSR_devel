@@ -1,8 +1,0 @@
-
-from bin.Data import DataStream
-
-
-
-seed_set = DataStream('source', 'title', 'abstract')
-
-for filename in glob.glob('../../')

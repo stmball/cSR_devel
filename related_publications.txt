@@ -1,3 +1,0 @@
-This code was used to conduct experiments described in the following article: 
-
-Norman CR, Gargon E, Leeflang MMG, Névéol A, Williamson PR. Evaluation of an automatic article selection method for timelier updates of the Comet Core Outcome Set database. Database (Oxford). 2019 Jan 1;2019:baz109. PMID: 31697361; https://academic.oup.com/database/article/doi/10.1093/database/baz109/5611293

@@ -1,7 +1,0 @@
-
-Sequence:
-  - Parallel:
-      - WordSequence:
-          field:      text
-          max_words:  128
-

@@ -1,5 +1,0 @@
-
-featurekit/porter $1 > $1.stem
-sed -e 's/[^a-z0-9]/ /g' -e 's/  */\n/g' $1.stem | grep -v '^$' | sort | uniq -c > $1.vocab
-
-
