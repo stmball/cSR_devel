@@ -16,26 +16,18 @@
 TMPDIR=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 24 ; echo ''`
 mkdir /tmp/"$TMPDIR"
 
-OUTFILE=sorted/quickUpdate6.xml
+OUTFILE=user_data/outputs/output.xml
 
 # ~~~~~~~~~~ Import endnote xmls to temp file ~~~~~~~~~~
 if [ $? -eq 0 ]; then
     python -m csr.examples.common.preprocess_data \
 	   --format endnote_xml \
 	   --train_N_paths \
-	   data/raw/COMET/negative/COMET_originalSR_M.xml \
-	   data/raw/COMET/negative/COMET_update1_M.xml \
-	   data/raw/COMET/negative/COMET_update2_M.xml \
-	   data/raw/COMET/negative/COMET_update3_M.xml \
-	   data/raw/COMET/negative/COMET_update4_M.xml \
+	   user_data/negative_labels \
 	   --train_Y_paths \
-	   data/raw/COMET/positive/COMET_originalSR_Y.xml \
-	   data/raw/COMET/positive/COMET_update1_Y.xml \
-	   data/raw/COMET/positive/COMET_update2_Y.xml \
-	   data/raw/COMET/positive/COMET_update3_Y.xml \
-	   data/raw/COMET/positive/COMET_update4_Y.xml \
+	   user_data/positive_labels \
 	   --test_paths \
-	   data/raw/COMET/COMET_update6-deduplicated.xml \
+	   user_data/files_for_analysis \
 	   --out_path \
 	   /tmp/"$TMPDIR"/data.json
 fi
@@ -67,7 +59,7 @@ fi
 # ~~~~~~~~~~   the order of the original file  ~~~~~~~~~~
 if [ $? -eq 0 ]; then
     python -m csr.examples.common.sort_endnote_xml \
-	   --data data/raw/COMET/COMET_update6-deduplicated.xml \
+	   --data user_data/files_for_analysis/*.xml `# Original file to reorder` \
 	   --order /tmp/"$TMPDIR"/out.json* \
 	   --output "$OUTFILE" `# Write to new file`
 fi

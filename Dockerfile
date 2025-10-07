@@ -27,10 +27,7 @@ RUN ln -sf /usr/bin/python3.7 /usr/bin/python \
 # Set working directory
 WORKDIR /MLapp
 
-RUN git clone https://github.com/stmball/cSR_devel
-
-# Set working directory
-WORKDIR /MLapp/cSR_devel
+COPY . . 
 
 # Update pip
 RUN python3.7 -m pip install --upgrade pip
@@ -39,4 +36,4 @@ RUN python3.7 -m pip install --upgrade pip
 RUN python3.7 -m pip install -r requirements.txt
 
 # Run the application
-CMD ["python3.7", "-m", "csr.Data", "--help"]
+CMD ["bash", "csr/examples/quick/run_COMET.sh"]
