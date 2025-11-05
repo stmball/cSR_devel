@@ -42,7 +42,7 @@ requirements.txt
 To run the code, you will need to build the Docker container and run the analysis pipeline using the following terminal command:
 
 ```bash
-docker build -t csr-new . && docker run csr-new
+docker build -t csr-new . && docker run -v "$(pwd)/user_data:/MLapp/user_data" csr-new
 ```
 
 Your terminal should fill with lines starting with either `Pre-normalization` or `Post-normalization`; pausing for a while (sometimes hours!); and finally finishing. In your output folder should be an EndNote XML file that is ordered correctly 
